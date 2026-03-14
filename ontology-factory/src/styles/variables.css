@@ -1,0 +1,32 @@
+/* ========================================================= */
+/* CSS Variables - 全局变量                                   */
+/* ========================================================= */
+
+:root {
+  /* 主题色 */
+  --primary-color: #2F54EB;
+  --primary-light: #F0F5FF;
+
+  /* 文字颜色 */
+  --text-main: #1D2129;
+  --text-regular: #4E5969;
+  --text-secondary: #86909C;
+
+  /* 边框与背景 */
+  --border-color: #E5E6EB;
+  --bg-body: #F7F8FA;
+  --bg-white: #FFFFFF;
+
+  /* 状态色 */
+  --success-color: #00B42A;
+  --warning-color: #FF7D00;
+  --danger-color: #F53F3F;
+  --processing-color: #165DFF;
+
+  /* 步骤颜色 */
+  --color-step1: #165DFF;
+  --color-step2: #722ED1;
+  --color-step3: #FA8C16;
+  --color-step4: #00B42A;
+  --active-step-color: var(--color-step1);
+}

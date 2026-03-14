@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>浩鲸数据工厂 - 本体构建</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ========================================================= */
+        /* [CSS: 00 - 全局变量与重置]                                 */
+        /* ========================================================= */
+        :root {
+            --primary-color: #2F54EB; --primary-light: #F0F5FF;
+            --text-main: #1D2129; --text-regular: #4E5969; --text-secondary: #86909C;
+            --border-color: #E5E6EB; --bg-body: #F7F8FA; --bg-white: #FFFFFF;
+            --success-color: #00B42A; --warning-color: #FF7D00; --danger-color: #F53F3F; --processing-color: #165DFF;
+            --color-step1: #165DFF; --color-step2: #722ED1; --color-step3: #FA8C16; --color-step4: #00B42A;
+            --active-step-color: var(--color-step1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: var(--bg-body); color: var(--text-main); font-size: 14px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        ul { list-style: none; }
+
+        /* ========================================================= */
+        /* [CSS: 01 - 公共组件]                                       */
+        /* ========================================================= */
+        .btn { padding: 8px 16px; border-radius: 4px; font-size: 14px; cursor: pointer; border: 1px solid var(--border-color); background-color: var(--bg-white); display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; user-select: none; white-space: nowrap; }
+        .btn:hover { background-color: #f2f3f5; }
+        .btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); color: white; }
+        .btn-primary:hover { background-color: #1D39C4; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .btn-warning { background-color: var(--warning-color); border-color: var(--warning-color); color: white; }
+        .btn-warning:hover { background-color: #d46b00; }
+        .btn-success { background-color: var(--success-color); border-color: var(--success-color); color: white; }
+        .btn-ghost { color: var(--primary-color); border-color: var(--primary-color); background: transparent; }
+        .btn-ghost:hover { background: var(--primary-light); }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; font-size: 12px; background-color: #F2F3F5; color: var(--text-regular); }
+        .status-badge.processing { background-color: var(--primary-light); color: var(--primary-color); }
+        .status-badge.success { background-color: #E8FFEA; color: var(--success-color); }
+        .action-link { color: var(--primary-color); cursor: pointer; margin-left: 16px; font-size: 13px; user-select: none; }
+        .action-link:hover { opacity: 0.8; text-decoration: underline; }
+        .action-link.danger { color: var(--danger-color); }
+
+        /* ========================================================= */
+        /* [CSS: 02 - 顶栏]                                           */
+        /* ========================================================= */
+        .header { height: 56px; background-color: var(--bg-white); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 28px; height: 28px; background-color: var(--primary-color); color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .header-title { font-size: 16px; font-weight: 600; }
+        .header-subtitle { font-size: 12px; color: var(--text-secondary); font-weight: normal; margin-left: 8px; border-left: 1px solid var(--border-color); padding-left: 8px; }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .status-indicator { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-regular); }
+        .status-dot-header { width: 8px; height: 8px; background-color: var(--success-color); border-radius: 50%; }
+        .header-actions { display: flex; gap: 16px; color: var(--text-secondary); font-size: 18px; cursor: pointer; }
+
+        /* ========================================================= */
+        /* [CSS: 03 - 视图控制器]                                     */
+        /* ========================================================= */
+        .view-section { display: none; flex: 1; overflow: hidden; height: 100%; width: 100%; flex-direction: row; min-height: 0; }
+        .view-section.active { display: flex; }
+        .workspace-container { display: none; flex: 1; overflow: hidden; position: relative; min-height: 0; }
+        .workspace-container.active { display: flex; }
+
+        /* ========================================================= */
+        /* [CSS: 04 - 视图1: 任务列表]                                */
+        /* ========================================================= */
+        .sidebar { width: 220px; background-color: var(--bg-white); border-right: 1px solid var(--border-color); padding: 12px 8px; overflow-y: auto; flex-shrink: 0; }
+        .menu-item { display: flex; align-items: center; padding: 9px 14px; margin-bottom: 2px; border-radius: 6px; cursor: pointer; color: var(--text-regular); transition: all 0.2s; font-size: 14px; }
+        .menu-item i:first-child { width: 18px; margin-right: 10px; font-size: 15px; text-align: center; }
+        .menu-item:hover { background-color: #f2f3f5; }
+        .menu-item.active { background-color: var(--primary-light); color: var(--primary-color); font-weight: 500; }
+        .submenu { padding-left: 16px; }
+        .submenu .menu-item { padding: 9px 14px 9px 22px; }
+        .menu-group-title { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; color: var(--text-main); font-size: 14px; cursor: pointer; }
+
+        /* 列表区域：紧凑布局，最大化任务表高度 */
+        .list-content-area { flex: 1; padding: 16px 20px; overflow: hidden; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+
+        /* 空间配置卡片：紧凑横向布局 */
+        .workspace-card { background-color: var(--bg-white); border-radius: 8px; padding: 14px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); border: 1px solid var(--border-color); flex-shrink: 0; }
+        .workspace-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .workspace-title { font-size: 14px; font-weight: 600; color: var(--primary-color); display: flex; align-items: center; gap: 8px; }
+        /* 一行3~4项的网格 */
+        .workspace-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 16px; }
+        .info-item { display: flex; align-items: center; gap: 8px; min-width: 0; background: #FAFAFA; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; }
+        .info-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary-color); flex-shrink: 0; }
+        .info-label { font-size: 12px; color: var(--text-secondary); flex-shrink: 0; }
+        .info-value { font-size: 13px; color: var(--text-main); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .info-badge { font-size: 11px; background: #E8FFEA; color: var(--success-color); padding: 1px 6px; border-radius: 3px; flex-shrink: 0; }
+
+        /* 任务列表卡片：占满剩余高度 */
+        .content-card { background-color: var(--bg-white); border-radius: 8px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); border: 1px solid var(--border-color); flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0; }
+        .section-title { font-size: 15px; font-weight: 600; }
+        .section-actions { display: flex; align-items: center; gap: 10px; }
+        .table-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 12px 14px; border-bottom: 1px solid var(--border-color); text-align: left; }
+        .data-table th { color: var(--text-secondary); font-weight: 500; font-size: 12px; background-color: #FAFAFA; position: sticky; top: 0; z-index: 1; }
+        .data-table td { font-size: 13px; }
+        .data-table tbody tr:hover { background-color: #FAFAFA; }
+        .col-actions { text-align: right; }
+        .pagination-container { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); color: var(--text-secondary); font-size: 12px; flex-shrink: 0; }
+        .pagination { display: flex; gap: 6px; }
+        .page-item { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; background: var(--bg-white); font-size: 12px; }
+        .page-item.active { background-color: var(--primary-light); color: var(--primary-color); border-color: var(--primary-color); }
+        .page-item:hover:not(.active) { background-color: #f2f3f5; }
+
+        /* ========================================================= */
+        /* [CSS: 05 - 视图2: 任务操作页 TopBar & Stepper]             */
+        /* ========================================================= */
+        #taskView { flex-direction: column; background: var(--bg-body); }
+        .editor-topbar { height: 56px; background: var(--bg-white); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 10; flex-shrink: 0; }
+        .editor-title-area { display: flex; align-items: center; gap: 14px; font-size: 15px; font-weight: 600; }
+        .back-btn { cursor: pointer; color: var(--text-secondary); transition: color 0.2s; font-size: 17px; }
+        .back-btn:hover { color: var(--primary-color); }
+        .view-mode-switch { display: flex; background: #F2F3F5; border-radius: 6px; padding: 2px; margin-left: 20px; }
+        .mode-btn { padding: 5px 14px; font-size: 13px; color: var(--text-regular); border-radius: 4px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px; }
+        .mode-btn.active { background: var(--bg-white); color: var(--primary-color); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stepper-nav { display: flex; align-items: center; gap: 2px; background: var(--bg-body); padding: 3px 6px; border-radius: 20px; }
+        .step-pill { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-regular); padding: 4px 10px 4px 4px; border-radius: 16px; cursor: pointer; transition: all 0.3s; }
+        .step-pill:hover { background: #E5E6EB; }
+        .step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--border-color); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+        .step-pill.active { background: var(--bg-white); color: var(--active-step-color); font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+        .step-pill.active .step-num { background: var(--active-step-color); }
+        .step-pill.done .step-num { background: var(--success-color); }
+
+        /* ========================================================= */
+        /* [CSS: 06 - 步骤页通用：内容区 + 底部操作栏]                */
+        /* ========================================================= */
+        /* 步骤页统一布局：内容可滚动 + 固定底栏 */
+        .step-page-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+        .step-page-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; align-items: center; min-height: 0; }
+        .step-page-footer { flex-shrink: 0; background: var(--bg-white); border-top: 1px solid var(--border-color); padding: 12px 24px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+        .step-page-footer .footer-left { margin-right: auto; font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+
+        .form-page-container { width: 100%; max-width: 960px; display: flex; flex-direction: column; gap: 20px; padding-bottom: 8px; }
+        .form-page-title { font-size: 18px; font-weight: 600; color: var(--text-main); margin-bottom: 4px; }
+        .form-page-desc { font-size: 13px; color: var(--text-secondary); }
+        .form-section-card { background: var(--bg-white); border-radius: 8px; padding: 20px 28px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+        .form-section-title { font-size: 15px; font-weight: 600; margin-bottom: 20px; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+        .step-badge { width: 20px; height: 20px; background: var(--primary-light); color: var(--primary-color); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+        .form-row { display: flex; margin-bottom: 20px; align-items: flex-start; }
+        .form-row:last-child { margin-bottom: 0; }
+        .form-label { width: 110px; font-size: 13px; color: var(--text-regular); padding-top: 8px; flex-shrink: 0; }
+        .form-control { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        .segmented-control { display: inline-flex; background: #F2F3F5; border-radius: 6px; padding: 3px; width: fit-content; }
+        .segment-btn { padding: 5px 18px; font-size: 13px; border-radius: 4px; cursor: pointer; transition: all 0.2s; color: var(--text-regular); }
+        .segment-btn.active { background: var(--bg-white); color: var(--primary-color); font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .b-select { width: 100%; max-width: 400px; padding: 7px 12px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; color: var(--text-main); outline: none; appearance: none; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%2386909C" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>') no-repeat right 12px center; background-color: #fff; cursor: pointer; }
+        .b-select:focus { border-color: var(--primary-color); }
+        .b-select:disabled { background-color: #F7F8FA; cursor: not-allowed; color: var(--text-secondary); }
+        .radio-group { display: flex; align-items: center; gap: 24px; padding-top: 8px; }
+        .radio-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+        .search-box-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .search-input-wrapper { position: relative; width: 280px; }
+        .search-input-wrapper i { position: absolute; left: 10px; top: 9px; color: var(--text-secondary); font-size: 13px; }
+        .search-input { width: 100%; padding: 7px 10px 7px 32px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; outline: none; }
+        .scope-table { width: 100%; border-collapse: collapse; border-style: hidden; box-shadow: 0 0 0 1px var(--border-color); border-radius: 6px; overflow: hidden; }
+        .scope-table th, .scope-table td { padding: 10px 14px; border-bottom: 1px solid var(--border-color); text-align: left; }
+        .scope-table th { background: #FAFAFA; color: var(--text-secondary); font-weight: 500; font-size: 12px; }
+        .scope-table td { font-size: 13px; }
+        .scope-table tbody tr:hover { background-color: #F7F8FA; }
+        .td-checkbox { width: 36px; }
+        .tb-name { font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        .tb-comment { font-size: 11px; color: var(--text-secondary); }
+        .ellipsis-text { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); font-size: 12px; }
+        .table-pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
+
+        /* 自定义脚本区 */
+        .script-action-area { display: flex; align-items: center; gap: 12px; padding: 14px; background: #F7F8FA; border: 1px dashed var(--border-color); border-radius: 6px; }
+        .script-hint { font-size: 13px; color: var(--text-secondary); }
+
+        /* ========================================================= */
+        /* [CSS: 07 - 画布工作区]                                     */
+        /* ========================================================= */
+        .components-panel { width: 220px; background: var(--bg-white); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 5; }
+        .panel-header { padding: 14px; border-bottom: 1px solid var(--border-color); font-weight: 600; font-size: 14px; }
+        .panel-body { flex: 1; overflow-y: auto; padding: 10px; }
+        .comp-group { margin-bottom: 14px; }
+        .comp-group-title { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+        .comp-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 6px; cursor: grab; background: var(--bg-white); transition: border-color 0.2s; }
+        .comp-item:hover { border-color: var(--active-step-color); }
+        .comp-icon { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; flex-shrink: 0; }
+        .comp-text { font-size: 12px; }
+        .canvas-area { flex: 1; position: relative; overflow: hidden; background-color: #F8F9FA; background-image: radial-gradient(#D1D5DB 1px, transparent 1px); background-size: 20px 20px; }
+        #svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+        .connection-line { fill: none; stroke: #A1B0CC; stroke-width: 2px; pointer-events: stroke; cursor: pointer; transition: stroke-width 0.2s, stroke 0.2s; }
+        .connection-line:hover { stroke: var(--danger-color); stroke-width: 4px; }
+        .temp-line { stroke: var(--active-step-color); stroke-dasharray: 5,5; pointer-events: none; }
+        .canvas-node { position: absolute; width: 190px; background: var(--bg-white); border-radius: 6px; border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.04); z-index: 2; display: flex; align-items: stretch; user-select: none; }
+        .canvas-node.selected { border-color: var(--active-step-color); z-index: 3; }
+        .canvas-node:hover .node-actions { display: flex; }
+        .node-color-bar { width: 5px; border-radius: 6px 0 0 6px; }
+        .node-content { padding: 10px; flex: 1; display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
+        .node-header { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+        .node-title { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+        .node-desc { font-size: 11px; color: var(--text-secondary); }
+        .node-actions { display: none; position: absolute; top: -11px; right: -8px; background: var(--bg-white); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 2px 5px; gap: 5px; z-index: 4; }
+        .action-icon { cursor: pointer; font-size: 11px; color: var(--text-secondary); transition: color 0.2s; }
+        .action-icon.edit:hover { color: var(--primary-color); }
+        .action-icon.delete:hover { color: var(--danger-color); }
+        .port { width: 10px; height: 10px; background: #fff; border: 2px solid #A1B0CC; border-radius: 50%; position: absolute; top: 50%; transform: translateY(-50%); z-index: 5; cursor: crosshair; transition: all 0.2s; }
+        .port:hover { border-color: var(--active-step-color); transform: translateY(-50%) scale(1.3); }
+        .port.in { left: -5px; }
+        .port.out { right: -5px; }
+        .config-drawer { position: absolute; top: 0; right: -300px; width: 300px; height: 100%; background: var(--bg-white); border-left: 1px solid var(--border-color); box-shadow: -4px 0 16px rgba(0,0,0,0.05); z-index: 20; transition: right 0.3s; display: flex; flex-direction: column; }
+        .config-drawer.open { right: 0; }
+        .drawer-header { padding: 14px 18px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; }
+        .close-drawer { cursor: pointer; color: var(--text-secondary); font-size: 15px; }
+        .close-drawer:hover { color: var(--danger-color); }
+        .drawer-body { padding: 18px; flex: 1; overflow-y: auto; }
+        .form-group { margin-bottom: 14px; }
+        .form-input { width: 100%; padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; outline: none; }
+
+        /* ========================================================= */
+        /* [CSS: 08 - 模态框]                                         */
+        /* ========================================================= */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); z-index: 999; align-items: center; justify-content: center; }
+        .modal { background: #fff; padding: 24px; border-radius: 8px; width: 350px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+        .modal h3 { margin-bottom: 14px; font-size: 15px; }
+        .modal-footer { margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; }
+        .sql-editor-box { background: #1E1E1E; color: #D4D4D4; padding: 14px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 13px; height: 180px; border: none; width: 100%; resize: none; outline: none; line-height: 1.5; }
+
+        /* ========================================================= */
+        /* [CSS: 09 - IDE 弹窗：高度80vh]                             */
+        /* ========================================================= */
+        .ide-modal { width: 92vw; max-width: 1100px; height: 82vh; padding: 0; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+        .ide-titlebar { background: #1E1E2E; color: #CDD6F4; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .ide-titlebar-left { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+        .ide-close { cursor: pointer; color: #6C7086; font-size: 15px; }
+        .ide-close:hover { color: #F38BA8; }
+        .ide-body { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+        .ide-sidebar { width: 220px; background: #181825; color: #CDD6F4; display: flex; flex-direction: column; flex-shrink: 0; border-right: 1px solid #313244; }
+        .ide-sidebar-header { padding: 9px 12px; font-size: 11px; font-weight: 600; color: #6C7086; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #313244; }
+        .ide-sidebar-actions { display: flex; gap: 6px; }
+        .ide-sidebar-btn { background: none; border: 1px solid #45475A; color: #CDD6F4; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+        .ide-sidebar-btn:hover { background: #313244; }
+        .ide-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+        .ide-tree-ds { margin-bottom: 2px; }
+        .ide-tree-ds-header { display: flex; align-items: center; gap: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; color: #CDD6F4; }
+        .ide-tree-ds-header:hover { background: #313244; }
+        .ide-tree-ds-icon { color: #89B4FA; font-size: 11px; }
+        .ide-tree-table { display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 28px; cursor: pointer; font-size: 12px; color: #A6ADC8; }
+        .ide-tree-table:hover { background: #313244; color: #CDD6F4; }
+        .ide-tree-table-icon { color: #A6E3A1; font-size: 10px; }
+        .ide-editor-area { flex: 1; display: flex; flex-direction: column; background: #1E1E2E; overflow: hidden; }
+        .ide-tabs { display: flex; align-items: center; background: #181825; border-bottom: 1px solid #313244; flex-shrink: 0; }
+        .ide-tab { display: flex; align-items: center; gap: 7px; padding: 7px 14px; font-size: 12px; color: #6C7086; cursor: pointer; border-right: 1px solid #313244; white-space: nowrap; }
+        .ide-tab.active { background: #1E1E2E; color: #CDD6F4; border-bottom: 2px solid #89B4FA; }
+        .ide-tab:hover:not(.active) { background: #313244; color: #CDD6F4; }
+        .ide-code-area { flex: 1; overflow: hidden; }
+        .ide-code-editor { width: 100%; height: 100%; background: #1E1E2E; color: #CDD6F4; border: none; resize: none; outline: none; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; padding: 14px; }
+        .ide-statusbar { background: #181825; color: #6C7086; padding: 3px 12px; font-size: 11px; display: flex; align-items: center; gap: 14px; border-top: 1px solid #313244; flex-shrink: 0; }
+        .ide-footer { background: #181825; padding: 9px 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #313244; flex-shrink: 0; }
+        .ide-footer-left { font-size: 12px; color: #6C7086; display: flex; align-items: center; gap: 6px; }
+        .ide-footer-right { display: flex; gap: 8px; }
+        .ide-btn { padding: 6px 14px; border-radius: 4px; font-size: 12px; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 5px; }
+        .ide-btn-run { background: #A6E3A1; color: #1E1E2E; }
+        .ide-btn-run:hover { background: #7EC67A; }
+        .ide-btn-submit { background: #89B4FA; color: #1E1E2E; }
+        .ide-btn-submit:hover { background: #6EA3F0; }
+        .ide-btn-cancel { background: #313244; color: #CDD6F4; }
+        .ide-btn-cancel:hover { background: #45475A; }
+        .ide-ds-form { background: #313244; border-radius: 6px; padding: 12px; margin: 6px 8px; display: none; }
+        .ide-ds-form.show { display: block; }
+        .ide-input { width: 100%; padding: 5px 8px; background: #1E1E2E; border: 1px solid #45475A; border-radius: 4px; color: #CDD6F4; font-size: 12px; outline: none; margin-bottom: 6px; }
+        .ide-input:focus { border-color: #89B4FA; }
+        .ide-select { width: 100%; padding: 5px 8px; background: #1E1E2E; border: 1px solid #45475A; border-radius: 4px; color: #CDD6F4; font-size: 12px; outline: none; margin-bottom: 6px; }
+
+        /* ========================================================= */
+        /* [CSS: 10 - 步骤2: 实体提取页面]                            */
+        /* ========================================================= */
+        .step2-workspace { display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-body); }
+
+        /* 左侧本体目录树 */
+        .ontology-panel { width: 260px; background: var(--bg-white); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; }
+        .ontology-panel-header { padding: 10px 14px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .ontology-panel-title { font-weight: 600; font-size: 13px; }
+        .ontology-panel-body { flex: 1; overflow-y: auto; }
+
+        /* 三级目录树样式 */
+        /* L1 根目录 */
+        .onto-l1 { }
+        .onto-l1-header { display: flex; align-items: center; gap: 6px; padding: 8px 10px 8px 10px; cursor: pointer; color: var(--text-main); font-size: 13px; font-weight: 600; transition: background 0.15s; user-select: none; }
+        .onto-l1-header:hover { background: #F2F3F5; }
+        .onto-l1-icon { width: 22px; height: 22px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; flex-shrink: 0; }
+        .onto-l1-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .onto-l1-count { font-size: 10px; color: var(--text-secondary); font-weight: normal; flex-shrink: 0; }
+        .onto-chevron { font-size: 9px; color: var(--text-secondary); transition: transform 0.2s; flex-shrink: 0; }
+        .onto-l1.open > .onto-l1-header .onto-chevron { transform: rotate(90deg); }
+        .onto-l1-children { display: none; }
+        .onto-l1.open > .onto-l1-children { display: block; }
+
+        /* L2 中间目录 */
+        .onto-l2 { }
+        .onto-l2-header { display: flex; align-items: center; gap: 5px; padding: 6px 10px 6px 26px; cursor: pointer; color: var(--text-regular); font-size: 12px; font-weight: 500; transition: background 0.15s; user-select: none; }
+        .onto-l2-header:hover { background: #F2F3F5; }
+        .onto-l2-dot { width: 14px; height: 14px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; flex-shrink: 0; }
+        .onto-l2-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .onto-l2-count { font-size: 10px; color: var(--text-secondary); font-weight: normal; flex-shrink: 0; }
+        .onto-l2.open > .onto-l2-header .onto-chevron { transform: rotate(90deg); }
+        .onto-l2-children { display: none; }
+        .onto-l2.open > .onto-l2-children { display: block; }
+
+        /* L3 叶节点 */
+        .onto-leaf { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 40px; cursor: pointer; color: var(--text-secondary); font-size: 12px; transition: all 0.15s; user-select: none; }
+        .onto-leaf:hover { background: #F2F3F5; color: var(--text-main); }
+        .onto-leaf.active { background: var(--primary-light); color: var(--primary-color); font-weight: 500; }
+        .onto-leaf-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .onto-leaf-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .onto-leaf-cnt { font-size: 10px; flex-shrink: 0; }
+        .onto-leaf.active .onto-leaf-cnt { color: var(--primary-color); opacity: 0.7; }
+
+        /* 中间实体区 */
+        .entity-extract-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; position: relative; }
+        .entity-extract-header { padding: 10px 14px; background: var(--bg-white); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .entity-extract-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+        .entity-extract-stats { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-secondary); }
+        .stat-num { font-weight: 700; font-size: 14px; }
+        .stat-num.total { color: var(--text-main); }
+        .stat-num.new-found { color: #722ED1; }
+        .stat-num.existing { color: var(--success-color); }
+        .entity-list-body { flex: 1; overflow-y: auto; padding: 10px 14px; }
+        .entity-card { background: var(--bg-white); border: 1px solid var(--border-color); border-radius: 7px; margin-bottom: 8px; overflow: hidden; transition: box-shadow 0.2s; }
+        .entity-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .entity-card-header { padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .entity-card-left { display: flex; align-items: center; gap: 7px; min-width: 0; }
+        .entity-type-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .entity-name { font-size: 13px; font-weight: 500; }
+        .entity-name-cn { font-size: 11px; color: var(--text-secondary); }
+        .entity-card-right { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+        .tag-new { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 10px; font-size: 11px; background: #F4EEFF; color: #722ED1; border: 1px solid #D3B4FF; }
+        .tag-existing { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 10px; font-size: 11px; background: #E8FFEA; color: var(--success-color); border: 1px solid #B7EB8F; }
+        .entity-card-body { display: none; border-top: 1px solid var(--border-color); padding: 10px 12px; background: #FAFAFA; }
+        .entity-card.expanded .entity-card-body { display: block; }
+        .entity-expand-icon { font-size: 10px; color: var(--text-secondary); transition: transform 0.2s; }
+        .entity-card.expanded .entity-expand-icon { transform: rotate(180deg); }
+        .entity-ops { display: flex; align-items: center; gap: 2px; }
+        .entity-op-btn { width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: var(--text-secondary); transition: all 0.15s; }
+        .entity-op-btn:hover { background: #F2F3F5; color: var(--primary-color); }
+        .entity-op-btn.del:hover { color: var(--danger-color); }
+        .attr-list { display: flex; flex-wrap: wrap; gap: 5px; }
+        .attr-tag { display: inline-flex; flex-direction: column; padding: 4px 9px; background: var(--bg-white); border: 1px solid var(--border-color); border-radius: 4px; }
+        .attr-tag-en { font-size: 12px; color: var(--text-main); font-weight: 500; }
+        .attr-tag-cn { font-size: 10px; color: var(--text-secondary); margin-top: 1px; }
+        .entity-pagination { padding: 7px 14px; border-top: 1px solid var(--border-color); background: var(--bg-white); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+
+        /* 识别遮罩 */
+        .recognition-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.93); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; gap: 14px; }
+        .recognition-spinner { width: 52px; height: 52px; position: relative; }
+        .recognition-spinner::before { content:''; position:absolute; width:52px; height:52px; border-radius:50%; border:3px solid #EDE5FF; }
+        .recognition-spinner::after { content:''; position:absolute; width:52px; height:52px; border-radius:50%; border:3px solid transparent; border-top-color:#722ED1; animation:spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .ai-dots span { display:inline-block; width:5px; height:5px; background:#722ED1; border-radius:50%; margin:0 2px; animation:dotBounce 1.2s infinite; }
+        .ai-dots span:nth-child(2){ animation-delay:.2s; }
+        .ai-dots span:nth-child(3){ animation-delay:.4s; }
+        @keyframes dotBounce { 0%,80%,100%{transform:scale(0.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
+
+        /* 右侧映射面板 */
+        .mapping-panel { width: 380px; background: var(--bg-white); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; position: relative; overflow: hidden; }
+        .mapping-panel-header { padding: 10px 12px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .mapping-panel-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .view-toggle { display: flex; background: #F2F3F5; border-radius: 4px; padding: 2px; }
+        .view-toggle-btn { padding: 3px 9px; font-size: 11px; border-radius: 3px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; display: flex; align-items: center; gap: 3px; }
+        .view-toggle-btn.active { background: var(--bg-white); color: var(--primary-color); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .mapping-canvas { flex: 1; display: flex; overflow: hidden; position: relative; }
+        .mapping-col { flex: 1; display: flex; flex-direction: column; padding: 6px 0; overflow-y: auto; }
+        .mapping-col-title { padding: 3px 10px 7px; font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .mapping-field-item { padding: 6px 10px; margin: 2px 4px; background: #FAFAFA; border: 1px solid var(--border-color); border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+        .mapping-field-item:hover { border-color: var(--active-step-color); background: var(--primary-light); }
+        .mapping-field-item.active { border-color: var(--active-step-color); background: var(--primary-light); color: var(--active-step-color); font-weight: 500; }
+        .field-type { display: block; font-size: 10px; color: var(--text-secondary); margin-top: 1px; }
+        .mapping-field-item.active .field-type { color: var(--active-step-color); opacity: 0.7; }
+        .mapping-svg-mid { width: 52px; flex-shrink: 0; position: relative; overflow: visible; }
+        .mapping-svg-mid svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; }
+        .mapping-table-view { flex: 1; overflow-y: auto; padding: 8px; display: none; }
+        .mapping-table-view.active { display: block; }
+        .mapping-tbl { width: 100%; border-collapse: collapse; font-size: 11px; box-shadow: 0 0 0 1px var(--border-color); border-radius: 5px; overflow: hidden; border-style: hidden; }
+        .mapping-tbl th { background: #FAFAFA; padding: 7px 9px; font-size: 10px; color: var(--text-secondary); font-weight: 500; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .mapping-tbl td { padding: 7px 9px; border-bottom: 1px solid var(--border-color); }
+        .mapping-tbl tbody tr:hover { background: #F7F8FA; }
+        .mapped-arrow { color: var(--active-step-color); text-align: center; }
+        .conf-badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+        .conf-high { background: #E8FFEA; color: var(--success-color); }
+        .conf-mid { background: #FFF7E6; color: var(--warning-color); }
+        .conf-low { background: #FFECE8; color: var(--danger-color); }
+        .mapping-pagination { padding: 5px 10px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; font-size: 11px; color: var(--text-secondary); background: var(--bg-white); }
+        .mapping-recognizing-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 30; gap: 8px; }
+        .ai-scan-anim { width: 56px; height: 56px; position: relative; display: flex; align-items: center; justify-content: center; }
+        .ai-scan-ring { position: absolute; border-radius: 50%; border: 2px solid transparent; }
+        .ai-scan-ring:nth-child(1){ width:56px;height:56px;border-top-color:#722ED1;animation:spin 1s linear infinite; }
+        .ai-scan-ring:nth-child(2){ width:38px;height:38px;border-top-color:#165DFF;animation:spin 0.7s linear infinite reverse; }
+        .ai-scan-ring:nth-child(3){ width:22px;height:22px;border-top-color:#14C9C9;animation:spin 0.5s linear infinite; }
+        .ai-scan-icon { font-size: 12px; color: #722ED1; z-index: 1; }
+
+        /* 进度弹窗 */
+        .progress-section { margin-top: 14px; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
+        .progress-bar-track { width: 100%; height: 7px; background: #F2F3F5; border-radius: 4px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #165DFF, #722ED1); transition: width 0.4s ease; }
+        .progress-stage { margin-top: 7px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; }
+        .progress-hint { margin-top: 12px; padding: 9px 12px; background: #F0F5FF; border-radius: 6px; font-size: 12px; color: var(--text-regular); display: flex; align-items: flex-start; gap: 7px; }
+
+        /* 调整域弹窗 */
+        .domain-option { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; margin-bottom: 6px; transition: all 0.2s; }
+        .domain-option:hover { border-color: var(--primary-color); background: var(--primary-light); }
+        .domain-option.selected { border-color: var(--primary-color); background: var(--primary-light); }
+        .domain-option-icon { width: 26px; height: 26px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; flex-shrink: 0; }
+
+        /* 步骤3、4占位 */
+        .step-placeholder { display: flex; flex-direction: column; width: 100%; height: 100%; align-items: center; justify-content: center; gap: 14px; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+
+<!-- ===== 顶栏 ===== -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo-icon"><i class="fas fa-cubes"></i></div>
+        <div class="header-title">浩鲸数据工厂 <span class="header-subtitle">OPERATOR EDITION</span></div>
+    </div>
+    <div class="header-right">
+        <div class="status-indicator"><span class="status-dot-header"></span> 5G 核心网连接正常</div>
+        <div class="header-actions"><i class="fa-solid fa-gear"></i> <i class="fa-regular fa-circle-user"></i></div>
+    </div>
+</header>
+
+<!-- ===== 视图1: 任务列表 ===== -->
+<div id="listView" class="view-section active">
+    <aside class="sidebar">
+        <div class="menu-item"><i class="fa-solid fa-house"></i> 概览</div>
+        <div class="menu-group-title">
+            <span><i class="fa-solid fa-layer-group" style="margin-right:8px;"></i>语义建模</span>
+            <i class="fa-solid fa-chevron-down" style="font-size:11px;color:#86909C;"></i>
+        </div>
+        <ul class="submenu">
+            <li class="menu-item"><i class="fa-solid fa-sitemap"></i> 概念管理</li>
+            <li class="menu-item"><i class="fa-solid fa-cube"></i> 实体管理</li>
+            <li class="menu-item"><i class="fa-regular fa-calendar"></i> 事件管理</li>
+            <li class="menu-item"><i class="fa-solid fa-code-branch"></i> 关系管理</li>
+            <li class="menu-item active"><i class="fa-solid fa-database"></i> 本体构建</li>
+        </ul>
+    </aside>
+
+    <main class="list-content-area">
+        <!-- 空间配置：紧凑一行3-4项 -->
+        <div class="workspace-card">
+            <div class="workspace-card-header">
+                <div class="workspace-title"><i class="fa-solid fa-server"></i> 空间配置</div>
+                <button class="btn btn-primary btn-sm">编辑配置</button>
+            </div>
+            <div class="workspace-grid">
+                <div class="info-item">
+                    <div class="info-dot"></div>
+                    <span class="info-label">当前空间</span>
+                    <span class="info-value">产品知识本体</span>
+                </div>
+                <div class="info-item">
+                    <div class="info-dot"></div>
+                    <span class="info-label">大模型</span>
+                    <span class="info-value">通义千问32B · DeepSeek R1</span>
+                </div>
+                <div class="info-item">
+                    <div class="info-dot"></div>
+                    <span class="info-label">向量库</span>
+                    <span class="info-value">Milvus 192.168.1.10:19530</span>
+                </div>
+                <div class="info-item">
+                    <div class="info-dot" style="background:#722ED1;"></div>
+                    <span class="info-label">图数据库</span>
+                    <span class="info-value" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Neo4j 5.x — 192.168.1.20</span>
+                    <span class="info-badge"><i class="fa-solid fa-circle" style="font-size:6px;"></i> 已连接</span>
+                </div>
+                <div class="info-item">
+                    <div class="info-dot"></div>
+                    <span class="info-label">成员</span>
+                    <span class="info-value">admin, 张工, 李工, 王工...</span>
+                </div>
+                <div class="info-item">
+                    <div class="info-dot" style="background:#FA8C16;"></div>
+                    <span class="info-label">图存储</span>
+                    <span class="info-value">neo4j://产品知识本体/v2.1</span>
+                </div>
+                <div class="info-item">
+                    <div class="info-dot" style="background:#14C9C9;"></div>
+                    <span class="info-label">实体总数</span>
+                    <span class="info-value" style="color:#722ED1;font-weight:700;">1,284</span>
+                </div>
+                <div class="info-item">
+                    <div class="info-dot" style="background:#00B42A;"></div>
+                    <span class="info-label">关系总数</span>
+                    <span class="info-value" style="color:#00B42A;font-weight:700;">3,671</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务列表：占满剩余高度 -->
+        <div class="content-card">
+            <div class="section-header">
+                <div class="section-title">本体构建任务列表</div>
+                <div class="section-actions">
+                    <button class="btn btn-sm"><i class="fa-solid fa-filter"></i> 筛选</button>
+                    <button class="btn btn-primary btn-sm" onclick="switchMainView('taskView')"><i class="fa-solid fa-plus"></i> 新建构建任务</button>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>任务名称</th><th>数据源类型</th><th>采集方式</th><th>状态</th><th>最后采集时间</th><th class="col-actions">操作</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="font-weight:500;">CRM_USER_MAIN_DB</td><td><i class="fa-solid fa-database" style="color:var(--primary-color);margin-right:6px;"></i>结构化 MySQL</td><td><span class="status-badge">批量全量</span></td><td><span class="status-badge success"><i class="fa-regular fa-circle-check"></i> 同步成功</span></td><td style="color:var(--text-secondary);font-size:12px;">2024-10-25 04:00</td><td class="col-actions"><span class="action-link" onclick="switchMainView('taskView')">编辑</span><span class="action-link" style="color:var(--text-secondary);">日志</span></td></tr>
+                        <tr><td style="font-weight:500;">5G_PLAN_BROCHURE_PDF</td><td><i class="fa-regular fa-file-pdf" style="color:#722ED1;margin-right:6px;"></i>非结构化 PDF</td><td>批量</td><td><span class="status-badge processing"><i class="fa-solid fa-arrows-rotate fa-spin"></i> 提取中</span></td><td style="color:var(--text-secondary);font-size:12px;">2024-10-25 15:30</td><td class="col-actions"><span class="action-link" onclick="switchMainView('taskView')">编辑</span><span class="action-link" style="color:var(--text-secondary);">取消</span></td></tr>
+                        <tr><td style="font-weight:500;">KAFKA_SIGNAL_REALTIME</td><td><i class="fa-solid fa-bolt" style="color:#FA8C16;margin-right:6px;"></i>实时 Kafka</td><td>实时</td><td><span class="status-badge success"><i class="fa-solid fa-wave-square"></i> 监听中</span></td><td style="color:var(--text-secondary);font-size:12px;">—</td><td class="col-actions"><span class="action-link" onclick="switchMainView('taskView')">编辑</span><span class="action-link danger">停止</span></td></tr>
+                        <tr><td style="font-weight:500;">T_BASE_STATION_GEOS</td><td><i class="fa-solid fa-location-dot" style="color:var(--primary-color);margin-right:6px;"></i>结构化 MySQL</td><td>批量</td><td><span class="status-badge success"><i class="fa-regular fa-circle-check"></i> 成功</span></td><td style="color:var(--text-secondary);font-size:12px;">2024-10-24 10:00</td><td class="col-actions"><span class="action-link" style="color:var(--text-secondary);">详情</span></td></tr>
+                        <tr><td style="font-weight:500;">LOG_FAILURE_RECORDS</td><td><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger-color);margin-right:6px;"></i>结构化 CSV</td><td>增量</td><td><span style="color:var(--danger-color);font-size:11px;background:#FFECE8;padding:3px 8px;border-radius:4px;"><i class="fa-regular fa-circle-xmark"></i> 同步异常</span></td><td style="color:var(--text-secondary);font-size:12px;">2024-10-25 00:00</td><td class="col-actions"><span class="action-link" onclick="switchMainView('taskView')">重试</span></td></tr>
+                        <tr><td style="font-weight:500;">PRODUCT_CATALOG_ERP</td><td><i class="fa-solid fa-boxes-stacked" style="color:#14C9C9;margin-right:6px;"></i>结构化 Oracle</td><td>批量全量</td><td><span class="status-badge success"><i class="fa-regular fa-circle-check"></i> 同步成功</span></td><td style="color:var(--text-secondary);font-size:12px;">2024-10-23 02:00</td><td class="col-actions"><span class="action-link" onclick="switchMainView('taskView')">编辑</span><span class="action-link" style="color:var(--text-secondary);">日志</span></td></tr>
+                        <tr><td style="font-weight:500;">BILLING_DETAIL_PG</td><td><i class="fa-solid fa-file-invoice-dollar" style="color:#00B42A;margin-right:6px;"></i>结构化 PostgreSQL</td><td>增量</td><td><span class="status-badge processing"><i class="fa-solid fa-arrows-rotate fa-spin"></i> 同步中</span></td><td style="color:var(--text-secondary);font-size:12px;">2024-10-25 18:00</td><td class="col-actions"><span class="action-link" onclick="switchMainView('taskView')">编辑</span></td></tr>
+                        <tr><td style="font-weight:500;">COMPLAINT_WORKORDER_DB</td><td><i class="fa-solid fa-headset" style="color:#F53F3F;margin-right:6px;"></i>结构化 MySQL</td><td>增量</td><td><span class="status-badge success"><i class="fa-regular fa-circle-check"></i> 成功</span></td><td style="color:var(--text-secondary);font-size:12px;">2024-10-25 06:00</td><td class="col-actions"><span class="action-link" onclick="switchMainView('taskView')">编辑</span></td></tr>
+                        <tr><td style="font-weight:500;">NETWORK_SLICE_CONFIG</td><td><i class="fa-solid fa-network-wired" style="color:#722ED1;margin-right:6px;"></i>结构化 PostgreSQL</td><td>批量</td><td><span class="status-badge"><i class="fa-regular fa-clock"></i> 待执行</span></td><td style="color:var(--text-secondary);font-size:12px;">—</td><td class="col-actions"><span class="action-link" onclick="switchMainView('taskView')">编辑</span><span class="action-link danger">删除</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination-container">
+                <div>共 12 个构建任务，每页 9 条</div>
+                <div class="pagination">
+                    <div class="page-item"><i class="fa-solid fa-chevron-left"></i></div>
+                    <div class="page-item active">1</div>
+                    <div class="page-item">2</div>
+                    <div class="page-item"><i class="fa-solid fa-chevron-right"></i></div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- ===== 视图2: 任务操作 ===== -->
+<div id="taskView" class="view-section">
+    <!-- 顶栏 -->
+    <div class="editor-topbar">
+        <div class="editor-title-area">
+            <i class="fa-solid fa-arrow-left back-btn" onclick="switchMainView('listView')"></i>
+            <span id="taskName">新建采集任务</span>
+            <div class="view-mode-switch">
+                <div class="mode-btn active" id="btnModeForm" onclick="switchTaskMode('form')"><i class="fa-solid fa-list-ul"></i> 表格视图</div>
+                <div class="mode-btn" id="btnModeCanvas" onclick="switchTaskMode('canvas')"><i class="fa-solid fa-diagram-project"></i> 图形化视图</div>
+            </div>
+        </div>
+        <div class="stepper-nav" id="stepperNav"></div>
+        <div style="display:flex;gap:10px;" id="topbarActions">
+            <button class="btn btn-sm" id="btnClearCanvas" onclick="clearCanvas()" style="display:none;"><i class="fa-solid fa-trash-can"></i> 清除草稿</button>
+        </div>
+    </div>
+
+    <!-- 步骤1: 本体数据采集 -->
+    <div class="workspace-container active" id="formWorkspace">
+        <div class="step-page-wrap">
+            <div class="step-page-body">
+                <div class="form-page-container">
+                    <div>
+                        <div class="form-page-title">本体数据采集</div>
+                        <div class="form-page-desc">配置数据来源、采集方式及采集范围</div>
+                    </div>
+                    <!-- 基础规则 -->
+                    <div class="form-section-card">
+                        <div class="form-section-title"><span class="step-badge">1</span> 基础规则配置</div>
+                        <div class="form-row">
+                            <div class="form-label">数据格式</div>
+                            <div class="form-control">
+                                <div class="segmented-control">
+                                    <div class="segment-btn active" id="segStruct" onclick="switchDataType('struct')">结构化</div>
+                                    <div class="segment-btn" id="segUnstruct" onclick="switchDataType('unstruct')">非结构化</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row" id="rowCollectItem">
+                            <div class="form-label">采集项</div>
+                            <div class="form-control">
+                                <select class="b-select" id="collectItemSelect" onchange="onCollectItemChange(this.value)">
+                                    <option value="physical">物理元数据</option>
+                                    <option value="logical">逻辑模型</option>
+                                    <option value="model">模型管理</option>
+                                    <option value="script">自定义脚本</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row" id="rowCollectMode">
+                            <div class="form-label">采集方式</div>
+                            <div class="form-control">
+                                <div class="radio-group">
+                                    <label class="radio-label"><input type="radio" name="collectMode" checked> 全量</label>
+                                    <label class="radio-label"><input type="radio" name="collectMode"> 增量</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row" id="rowDataSource">
+                            <div class="form-label">采集数据源</div>
+                            <div class="form-control">
+                                <select class="b-select" id="dataSourceSelect">
+                                    <option>CRM 核心业务库 (MySQL 8.0) — 192.168.1.10:3306</option>
+                                    <option>ERP 供应链主数据库 (Oracle 19c) — 10.0.0.5:1521</option>
+                                    <option>日志汇聚中心 (ClickHouse 22.8)</option>
+                                    <option>运营商计费系统 (PostgreSQL 14) — 172.16.0.20:5432</option>
+                                    <option>基站地理信息库 (MySQL 5.7)</option>
+                                    <option>工单管理系统 (SQL Server 2019)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- 自定义脚本操作区 -->
+                        <div class="form-row" id="rowScriptAction" style="display:none;">
+                            <div class="form-label">脚本编写</div>
+                            <div class="form-control">
+                                <div class="script-action-area">
+                                    <i class="fa-solid fa-code" style="color:#722ED1;font-size:18px;"></i>
+                                    <div>
+                                        <div class="script-hint">通过自定义脚本灵活定义采集逻辑，支持多数据源联合查询。</div>
+                                        <div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">脚本状态：<span id="scriptStatus" style="color:var(--warning-color);">未配置</span></div>
+                                    </div>
+                                    <button class="btn btn-primary btn-sm" onclick="openIDE()" style="margin-left:auto;"><i class="fa-solid fa-code"></i> 编写脚本</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 采集范围（物理/逻辑/模型/脚本提交后均显示） -->
+                    <div class="form-section-card" id="cardDataScope">
+                        <div class="form-section-title"><span class="step-badge">2</span> 采集范围选择</div>
+                        <div class="search-box-wrapper">
+                            <div class="search-input-wrapper">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" class="search-input" id="tableSearch" placeholder="输入库名或表名..." onkeyup="fakeSearch(this.value)">
+                            </div>
+                            <div style="font-size:12px;color:var(--text-secondary);">已加载 CRM 核心业务库 所有表</div>
+                        </div>
+                        <table class="scope-table" id="targetTableList">
+                            <thead><tr><th class="td-checkbox"><input type="checkbox"></th><th width="20%">表名</th><th width="13%">所属库</th><th width="35%">字段预览</th><th>操作</th></tr></thead>
+                            <tbody>
+                                <tr class="table-list-item"><td class="td-checkbox"><input type="checkbox" checked></td><td><div class="tb-name"><i class="fa-solid fa-table" style="color:var(--text-secondary);"></i> t_user_main</div><div class="tb-comment">用户主表</div></td><td>crm_db</td><td><div class="ellipsis-text">user_id, user_name, phone_number, status, create_time...</div></td><td><span class="action-link" onclick="openSqlModal('t_user_main')">过滤</span><span class="action-link" onclick="openFieldModal('t_user_main')" style="color:var(--text-secondary);"><i class="fa-regular fa-eye"></i></span></td></tr>
+                                <tr class="table-list-item"><td class="td-checkbox"><input type="checkbox" checked></td><td><div class="tb-name"><i class="fa-solid fa-table" style="color:var(--text-secondary);"></i> t_order_flow</div><div class="tb-comment">订单流水表</div></td><td>crm_db</td><td><div class="ellipsis-text">order_id, user_id, amount, pay_status, finish_time...</div></td><td><span class="action-link" onclick="openSqlModal('t_order_flow')">过滤</span><span class="action-link" onclick="openFieldModal('t_order_flow')" style="color:var(--text-secondary);"><i class="fa-regular fa-eye"></i></span></td></tr>
+                                <tr class="table-list-item"><td class="td-checkbox"><input type="checkbox" checked></td><td><div class="tb-name"><i class="fa-solid fa-table" style="color:var(--text-secondary);"></i> t_product_catalog</div><div class="tb-comment">产品目录表</div></td><td>crm_db</td><td><div class="ellipsis-text">product_id, product_name, category, price, stock_qty...</div></td><td><span class="action-link" onclick="openSqlModal('t_product_catalog')">过滤</span><span class="action-link" onclick="openFieldModal('t_product_catalog')" style="color:var(--text-secondary);"><i class="fa-regular fa-eye"></i></span></td></tr>
+                                <tr class="table-list-item"><td class="td-checkbox"><input type="checkbox" checked></td><td><div class="tb-name"><i class="fa-solid fa-table" style="color:var(--text-secondary);"></i> t_contract_info</div><div class="tb-comment">合同信息表</div></td><td>crm_db</td><td><div class="ellipsis-text">contract_id, user_id, product_id, start_date, expire_date...</div></td><td><span class="action-link" onclick="openSqlModal('t_contract_info')">过滤</span><span class="action-link" onclick="openFieldModal('t_contract_info')" style="color:var(--text-secondary);"><i class="fa-regular fa-eye"></i></span></td></tr>
+                                <tr class="table-list-item"><td class="td-checkbox"><input type="checkbox" checked></td><td><div class="tb-name"><i class="fa-solid fa-table" style="color:var(--text-secondary);"></i> t_complaint_record</div><div class="tb-comment">投诉工单记录</div></td><td>crm_db</td><td><div class="ellipsis-text">complaint_id, user_id, type_code, content, handle_status...</div></td><td><span class="action-link" onclick="openSqlModal('t_complaint_record')">过滤</span><span class="action-link" onclick="openFieldModal('t_complaint_record')" style="color:var(--text-secondary);"><i class="fa-regular fa-eye"></i></span></td></tr>
+                                <tr class="table-list-item"><td class="td-checkbox"><input type="checkbox"></td><td><div class="tb-name"><i class="fa-solid fa-table" style="color:var(--text-secondary);"></i> t_api_logs</div><div class="tb-comment">接口调用日志</div></td><td>log_db</td><td><div class="ellipsis-text">log_id, api_path, request_ip, response_time, error_code...</div></td><td><span class="action-link" onclick="openSqlModal('t_api_logs')">过滤</span><span class="action-link" onclick="openFieldModal('t_api_logs')" style="color:var(--text-secondary);"><i class="fa-regular fa-eye"></i></span></td></tr>
+                                <tr class="table-list-item"><td class="td-checkbox"><input type="checkbox"></td><td><div class="tb-name"><i class="fa-solid fa-table" style="color:var(--text-secondary);"></i> t_base_station</div><div class="tb-comment">基站信息主表</div></td><td>geo_db</td><td><div class="ellipsis-text">station_id, station_name, longitude, latitude, coverage_radius...</div></td><td><span class="action-link" onclick="openSqlModal('t_base_station')">过滤</span><span class="action-link" onclick="openFieldModal('t_base_station')" style="color:var(--text-secondary);"><i class="fa-regular fa-eye"></i></span></td></tr>
+                                <tr class="table-list-item"><td class="td-checkbox"><input type="checkbox"></td><td><div class="tb-name"><i class="fa-solid fa-table" style="color:var(--text-secondary);"></i> t_billing_detail</div><div class="tb-comment">计费明细表</div></td><td>billing_db</td><td><div class="ellipsis-text">bill_id, user_id, cycle, total_fee, discount_fee, pay_channel...</div></td><td><span class="action-link" onclick="openSqlModal('t_billing_detail')">过滤</span><span class="action-link" onclick="openFieldModal('t_billing_detail')" style="color:var(--text-secondary);"><i class="fa-regular fa-eye"></i></span></td></tr>
+                            </tbody>
+                        </table>
+                        <div class="table-pagination">
+                            <span>共 8 张数据表</span>
+                            <div class="pagination">
+                                <div class="page-item"><i class="fa-solid fa-chevron-left"></i></div>
+                                <div class="page-item active">1</div>
+                                <div class="page-item"><i class="fa-solid fa-chevron-right"></i></div>
+                            </div>
+                        </div>
+                        <div id="unstructEmptyState" style="display:none;padding:40px;text-align:center;color:var(--text-secondary);border:1px dashed var(--border-color);border-radius:6px;margin-top:12px;">
+                            <i class="fa-solid fa-file-pdf" style="font-size:28px;color:#E5E6EB;margin-bottom:10px;"></i>
+                            <p>非结构化数据源无需配置细粒度库表映射。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 底部操作栏 -->
+            <div class="step-page-footer">
+                <div class="footer-left"><i class="fa-solid fa-circle-info"></i> 步骤 1 / 4</div>
+                <button class="btn" onclick="switchMainView('listView')"><i class="fa-solid fa-xmark"></i> 取消</button>
+                <button class="btn btn-ghost"><i class="fa-solid fa-floppy-disk"></i> 保存草稿</button>
+                <button class="btn btn-primary" onclick="switchStep(2)">下一步：实体数据提取 <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 画布视图 -->
+    <div class="workspace-container" id="canvasWorkspace">
+        <div class="components-panel">
+            <div class="panel-header">可用算子</div>
+            <div class="panel-body" id="componentList"></div>
+        </div>
+        <div class="canvas-area" id="canvasArea" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <svg id="svg-layer"><g id="edges-container"></g><path id="temp-line" class="connection-line temp-line" d=""></path></svg>
+            <div id="nodes-container"></div>
+        </div>
+        <div class="config-drawer" id="configDrawer">
+            <div class="drawer-header"><span>算子配置</span><i class="fa-solid fa-xmark close-drawer" onclick="closeDrawer()"></i></div>
+            <div class="drawer-body">
+                <div class="form-group"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:6px;">节点名称</label><input class="form-input" id="drawerNodeName" readonly style="background:#f7f8fa;"></div>
+                <div class="form-group"><label style="display:block;font-size:12px;color:var(--text-secondary);margin-bottom:6px;">算子类型</label><input class="form-input" id="drawerNodeType" readonly style="background:#f7f8fa;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 步骤2: 实体数据提取 + 映射 -->
+    <div class="workspace-container" id="step2Workspace">
+        <div class="step-page-wrap">
+            <!-- 三栏主内容 -->
+            <div style="flex:1;display:flex;overflow:hidden;min-height:0;">
+                <!-- 左侧本体目录树（含底部操作） -->
+                <div class="ontology-panel">
+                    <div class="ontology-panel-header">
+                        <span class="ontology-panel-title">本体列表</span>
+                        <i class="fa-solid fa-circle-info" style="font-size:11px;color:var(--text-secondary);cursor:pointer;"></i>
+                    </div>
+                    <div class="ontology-panel-body" id="ontologyList"></div>
+                </div>
+                <!-- 中间实体区 -->
+                <div class="entity-extract-panel">
+                    <div class="entity-extract-header">
+                        <div class="entity-extract-title">
+                            <i class="fa-solid fa-cube" style="color:#722ED1;"></i>
+                            <span id="currentOntologyName">CRM 用户域</span>
+                            <span style="font-size:11px;color:var(--text-secondary);font-weight:normal;">已识别实体</span>
+                        </div>
+                        <div class="entity-extract-stats">
+                            <span class="stat-num total" id="statTotal">5</span><span>个</span>
+                            <span style="width:1px;height:11px;background:var(--border-color);display:inline-block;"></span>
+                            <span class="stat-num new-found" id="statNew">3</span><span>新发现</span>
+                            <span style="width:1px;height:11px;background:var(--border-color);display:inline-block;"></span>
+                            <span class="stat-num existing" id="statExisting">2</span><span>已入库</span>
+                            <button class="btn btn-sm" onclick="confirmReextract()" style="color:var(--warning-color);border-color:var(--warning-color);margin-left:4px;font-size:11px;padding:3px 8px;">
+                                <i class="fa-solid fa-rotate-right"></i> 重识别
+                            </button>
+                        </div>
+                    </div>
+                    <div class="entity-list-body" id="entityListBody"></div>
+                    <div class="entity-pagination">
+                        <div style="font-size:11px;color:var(--text-secondary);">共 <span id="entityPageTotal">5</span> 个实体</div>
+                        <div class="pagination">
+                            <div class="page-item"><i class="fa-solid fa-chevron-left"></i></div>
+                            <div class="page-item active">1</div>
+                            <div class="page-item"><i class="fa-solid fa-chevron-right"></i></div>
+                        </div>
+                    </div>
+                    <div class="recognition-overlay" id="recognitionOverlay" style="display:none;">
+                        <div class="recognition-spinner"></div>
+                        <div style="font-size:13px;font-weight:600;color:#722ED1;">AI 正在智能识别实体<span class="ai-dots"><span></span><span></span><span></span></span></div>
+                        <div style="font-size:11px;color:var(--text-secondary);">基于大模型分析数据结构，请稍候...</div>
+                    </div>
+                </div>
+                <!-- 右侧映射面板 -->
+                <div class="mapping-panel">
+                    <div class="mapping-panel-header">
+                        <div class="mapping-panel-title"><i class="fa-solid fa-wand-magic-sparkles" style="color:#722ED1;"></i>AI 智能映射</div>
+                        <div class="view-toggle" id="mappingViewToggle">
+                            <div class="view-toggle-btn active" id="btnLineView" onclick="switchMappingView('line')"><i class="fa-solid fa-diagram-project"></i> 连线</div>
+                            <div class="view-toggle-btn" id="btnTableView" onclick="switchMappingView('table')"><i class="fa-solid fa-table-cells"></i> 表格</div>
+                        </div>
+                    </div>
+                    <div class="mapping-canvas" id="mappingLineView">
+                        <div class="mapping-col" id="mappingLeftCol"><div class="mapping-col-title">物理字段</div></div>
+                        <div class="mapping-svg-mid" id="mappingSvgMid"><svg id="mappingSvg" overflow="visible"></svg></div>
+                        <div class="mapping-col" id="mappingRightCol"><div class="mapping-col-title">实体属性</div></div>
+                        <div class="mapping-recognizing-overlay" id="mappingRecognizingOverlay" style="display:none;">
+                            <div class="ai-scan-anim"><div class="ai-scan-ring"></div><div class="ai-scan-ring"></div><div class="ai-scan-ring"></div><i class="fa-solid fa-wand-magic-sparkles ai-scan-icon"></i></div>
+                            <div style="font-size:12px;font-weight:600;color:#722ED1;">AI 重新识别中</div>
+                            <div class="ai-dots"><span></span><span></span><span></span></div>
+                        </div>
+                    </div>
+                    <div class="mapping-table-view" id="mappingTableView"></div>
+                    <div class="mapping-pagination">
+                        <span id="mappingPageInfo">共 8 条映射关系</span>
+                        <div class="pagination">
+                            <div class="page-item"><i class="fa-solid fa-chevron-left"></i></div>
+                            <div class="page-item active">1</div>
+                            <div class="page-item"><i class="fa-solid fa-chevron-right"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 底部操作栏 -->
+            <div class="step-page-footer">
+                <div class="footer-left"><i class="fa-solid fa-circle-info"></i> 步骤 2 / 4</div>
+                <button class="btn" onclick="switchStep(1)"><i class="fa-solid fa-arrow-left"></i> 上一步</button>
+                <button class="btn btn-ghost"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+                <button class="btn btn-primary" onclick="switchStep(3)">下一步：关联构建 <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 步骤3: 关联构建 -->
+    <div class="workspace-container" id="step3Workspace">
+        <div class="step-page-wrap">
+            <div class="step-page-body">
+                <div class="step-placeholder">
+                    <i class="fa-solid fa-circle-nodes" style="font-size:44px;color:#FA8C16;opacity:0.45;"></i>
+                    <div style="font-size:15px;font-weight:500;color:var(--text-regular);">关联构建</div>
+                    <div style="font-size:13px;">配置实体间的关联关系，构建知识图谱边结构。</div>
+                </div>
+            </div>
+            <div class="step-page-footer">
+                <div class="footer-left"><i class="fa-solid fa-circle-info"></i> 步骤 3 / 4</div>
+                <button class="btn" onclick="switchStep(2)"><i class="fa-solid fa-arrow-left"></i> 上一步</button>
+                <button class="btn btn-ghost"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+                <button class="btn btn-primary" onclick="switchStep(4)">下一步：知识融合入库 <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 步骤4: 知识融合入库 -->
+    <div class="workspace-container" id="step4Workspace">
+        <div class="step-page-wrap">
+            <div class="step-page-body">
+                <div class="step-placeholder">
+                    <i class="fa-solid fa-server" style="font-size:44px;color:#00B42A;opacity:0.45;"></i>
+                    <div style="font-size:15px;font-weight:500;color:var(--text-regular);">知识融合入库</div>
+                    <div style="font-size:13px;">将已构建的本体结构融合并写入图数据库。</div>
+                </div>
+            </div>
+            <div class="step-page-footer">
+                <div class="footer-left"><i class="fa-solid fa-circle-info"></i> 步骤 4 / 4</div>
+                <button class="btn" onclick="switchStep(3)"><i class="fa-solid fa-arrow-left"></i> 上一步</button>
+                <button class="btn btn-ghost"><i class="fa-solid fa-floppy-disk"></i> 保存</button>
+                <button class="btn btn-success" onclick="switchMainView('listView')"><i class="fa-solid fa-check"></i> 完成并提交</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 弹窗区 ===== -->
+
+<!-- 重命名 -->
+<div class="modal-overlay" id="renameModal">
+    <div class="modal">
+        <h3>重命名算子节点</h3>
+        <input class="form-input" id="renameInput">
+        <div class="modal-footer"><button class="btn" onclick="closeModal('renameModal')">取消</button><button class="btn btn-primary" onclick="confirmRename()">确认</button></div>
+    </div>
+</div>
+
+<!-- SQL 过滤 -->
+<div class="modal-overlay" id="sqlModal">
+    <div class="modal" style="width:500px;">
+        <h3>数据过滤条件配置</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">目标表：<b id="sqlTableName" style="color:var(--primary-color);"></b></p>
+        <textarea class="sql-editor-box" id="fakeSqlInput" spellcheck="false"></textarea>
+        <div class="modal-footer">
+            <button class="btn" style="margin-right:auto;color:var(--primary-color);border:none;"><i class="fa-solid fa-play"></i> 运行校验</button>
+            <button class="btn" onclick="closeModal('sqlModal')">取消</button>
+            <button class="btn btn-primary" onclick="closeModal('sqlModal')">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 字段预览 -->
+<div class="modal-overlay" id="fieldModal">
+    <div class="modal" style="width:580px;">
+        <h3>字段元数据预览</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">目标表：<b id="fieldTableName"></b></p>
+        <div style="max-height:280px;overflow-y:auto;border:1px solid var(--border-color);border-radius:4px;">
+            <table class="scope-table" style="border:none;box-shadow:none;">
+                <thead style="position:sticky;top:0;z-index:2;"><tr><th width="35%">字段物理名</th><th width="20%">数据类型</th><th width="15%">主键</th><th>字段说明</th></tr></thead>
+                <tbody>
+                    <tr><td>user_id</td><td>VARCHAR(32)</td><td><i class="fa-solid fa-key" style="color:#FA8C16;"></i> 是</td><td>用户唯一标识</td></tr>
+                    <tr><td>user_name</td><td>VARCHAR(64)</td><td>否</td><td>用户真实姓名</td></tr>
+                    <tr><td>phone_number</td><td>VARCHAR(20)</td><td>否</td><td>联系手机号(脱敏)</td></tr>
+                    <tr><td>status</td><td>INT(2)</td><td>否</td><td>状态 1:正常 0:注销</td></tr>
+                    <tr><td>create_time</td><td>DATETIME</td><td>否</td><td>记录创建时间</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('fieldModal')">关闭</button></div>
+    </div>
+</div>
+
+<!-- IDE 弹窗（高度 82vh） -->
+<div class="modal-overlay" id="ideModal">
+    <div class="modal ide-modal">
+        <div class="ide-titlebar">
+            <div class="ide-titlebar-left">
+                <i class="fa-solid fa-code" style="color:#89B4FA;"></i> 自定义采集脚本编辑器
+                <span style="font-size:11px;color:#6C7086;font-weight:normal;margin-left:6px;">script_collect_v1.sql</span>
+            </div>
+            <i class="fa-solid fa-xmark ide-close" onclick="closeModal('ideModal')"></i>
+        </div>
+        <div class="ide-body">
+            <div class="ide-sidebar">
+                <div class="ide-sidebar-header">
+                    <span>数据资源</span>
+                    <div class="ide-sidebar-actions">
+                        <button class="ide-sidebar-btn" onclick="toggleAddDsForm()"><i class="fa-solid fa-plus"></i> 数据源</button>
+                    </div>
+                </div>
+                <div class="ide-ds-form" id="ideDsForm">
+                    <select class="ide-select" id="ideDsType"><option>MySQL</option><option>Oracle</option><option>PostgreSQL</option><option>SQL Server</option><option>ClickHouse</option></select>
+                    <input class="ide-input" placeholder="主机地址 (host:port)">
+                    <input class="ide-input" placeholder="数据库名">
+                    <input class="ide-input" placeholder="用户名">
+                    <input class="ide-input" type="password" placeholder="密码">
+                    <div style="display:flex;gap:5px;">
+                        <button class="ide-sidebar-btn" onclick="addDsToTree()" style="flex:1;justify-content:center;"><i class="fa-solid fa-plug"></i> 连接</button>
+                        <button class="ide-sidebar-btn" onclick="toggleAddDsForm()">取消</button>
+                    </div>
+                </div>
+                <div class="ide-tree" id="ideTree">
+                    <div class="ide-tree-ds"><div class="ide-tree-ds-header" onclick="toggleIdeDs('crm')"><i class="fa-solid fa-chevron-right" id="ideChev_crm" style="font-size:9px;transition:transform .2s;"></i><i class="fa-solid fa-database ide-tree-ds-icon"></i><span>CRM 业务库</span></div><div id="ideTables_crm" style="display:none;"><div class="ide-tree-table" onclick="insertTableToSQL('t_user_main')"><i class="fa-solid fa-table ide-tree-table-icon"></i>t_user_main</div><div class="ide-tree-table" onclick="insertTableToSQL('t_order_flow')"><i class="fa-solid fa-table ide-tree-table-icon"></i>t_order_flow</div><div class="ide-tree-table" onclick="insertTableToSQL('t_product_catalog')"><i class="fa-solid fa-table ide-tree-table-icon"></i>t_product_catalog</div></div></div>
+                    <div class="ide-tree-ds"><div class="ide-tree-ds-header" onclick="toggleIdeDs('billing')"><i class="fa-solid fa-chevron-right" id="ideChev_billing" style="font-size:9px;transition:transform .2s;"></i><i class="fa-solid fa-database ide-tree-ds-icon"></i><span>计费系统</span></div><div id="ideTables_billing" style="display:none;"><div class="ide-tree-table" onclick="insertTableToSQL('t_billing_detail')"><i class="fa-solid fa-table ide-tree-table-icon"></i>t_billing_detail</div><div class="ide-tree-table" onclick="insertTableToSQL('t_pay_record')"><i class="fa-solid fa-table ide-tree-table-icon"></i>t_pay_record</div></div></div>
+                </div>
+            </div>
+            <div class="ide-editor-area">
+                <div class="ide-tabs">
+                    <div class="ide-tab active"><i class="fa-solid fa-file-code" style="color:#89B4FA;"></i>script_collect_v1.sql</div>
+                    <div class="ide-tab" onclick="addNewTab()"><i class="fa-solid fa-plus" style="font-size:10px;"></i></div>
+                </div>
+                <div class="ide-code-area">
+                    <textarea class="ide-code-editor" id="ideCodeEditor" spellcheck="false">-- 自定义采集脚本
+-- 点击左侧表名可快速插入
+
+SELECT
+    u.user_id,
+    u.user_name,
+    u.phone_number,
+    u.status,
+    u.create_time,
+    o.order_id,
+    o.amount       AS order_amount,
+    o.pay_status
+FROM crm_db.t_user_main u
+LEFT JOIN crm_db.t_order_flow o
+    ON u.user_id = o.user_id
+WHERE u.status = 1
+ORDER BY u.create_time DESC
+LIMIT 10000;</textarea>
+                </div>
+                <div class="ide-statusbar">
+                    <span><i class="fa-solid fa-circle" style="color:#A6E3A1;font-size:7px;"></i> SQL</span>
+                    <span>行: 1, 列: 1</span>
+                    <span>UTF-8</span>
+                    <span style="margin-left:auto;color:#A6E3A1;"><i class="fa-solid fa-check-circle"></i> 语法检查通过</span>
+                </div>
+            </div>
+        </div>
+        <div class="ide-footer">
+            <div class="ide-footer-left"><i class="fa-solid fa-circle-info"></i> 编写完成后点击"提交脚本"</div>
+            <div class="ide-footer-right">
+                <button class="ide-btn ide-btn-cancel" onclick="closeModal('ideModal')">取消</button>
+                <button class="ide-btn ide-btn-run"><i class="fa-solid fa-play"></i> 执行测试</button>
+                <button class="ide-btn ide-btn-submit" onclick="submitScript()"><i class="fa-solid fa-paper-plane"></i> 提交脚本</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 重新识别确认 -->
+<div class="modal-overlay" id="reextractConfirmModal">
+    <div class="modal" style="width:440px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <div style="width:40px;height:40px;background:#FFF7E6;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-rotate-right" style="font-size:17px;color:var(--warning-color);"></i></div>
+            <h3 style="margin:0;">确认重新识别实体？</h3>
+        </div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.8;">将按当前<strong style="color:var(--text-main);">采集范围配置</strong>重新抽取实体，此操作将<strong style="color:var(--danger-color);">清除当前已识别的全部实体数据</strong>。</p>
+        <div class="modal-footer">
+            <button class="btn" onclick="closeModal('reextractConfirmModal')">取消</button>
+            <button class="btn btn-warning" onclick="startReextract()"><i class="fa-solid fa-rotate-right"></i> 确认重新识别</button>
+        </div>
+    </div>
+</div>
+
+<!-- 重新识别进度 -->
+<div class="modal-overlay" id="reextractProgressModal">
+    <div class="modal" style="width:460px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <div style="width:40px;height:40px;background:#F0F5FF;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-gears fa-spin" style="font-size:17px;color:var(--primary-color);"></i></div>
+            <div><div style="font-size:14px;font-weight:600;">实体重新识别中</div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">过程较长，可退出等待后台继续执行</div></div>
+        </div>
+        <div class="progress-section">
+            <div class="progress-header"><span id="progressLabel" style="color:var(--text-regular);font-weight:500;">初始化...</span><span id="progressPct" style="color:var(--primary-color);font-weight:600;">0%</span></div>
+            <div class="progress-bar-track"><div class="progress-bar-fill" id="progressBarFill" style="width:0%;"></div></div>
+            <div class="progress-stage" id="progressStage"><i class="fa-solid fa-circle-notch fa-spin"></i><span>初始化识别任务...</span></div>
+        </div>
+        <div class="progress-hint"><i class="fa-solid fa-circle-info" style="color:var(--primary-color);margin-top:1px;flex-shrink:0;"></i><div>识别任务将在后台持续运行，您可先关闭此窗口，完成后系统自动刷新结果。</div></div>
+        <div class="modal-footer" style="margin-top:12px;">
+            <button class="btn" onclick="dismissProgressModal()"><i class="fa-solid fa-arrow-right-from-bracket"></i> 退出等待，后台运行</button>
+            <button class="btn btn-primary" id="btnProgressClose" onclick="closeModal('reextractProgressModal')" style="display:none;"><i class="fa-solid fa-check"></i> 识别完成，查看结果</button>
+        </div>
+    </div>
+</div>
+
+<!-- 调整所属域 -->
+<div class="modal-overlay" id="moveDomainModal">
+    <div class="modal" style="width:400px;">
+        <h3>调整实体所属域</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">实体 <strong id="movingEntityName" style="color:var(--text-main);"></strong> 当前在 <strong id="movingEntityCurrentDomain" style="color:#722ED1;"></strong>，请选择目标域：</p>
+        <div id="domainOptionList"></div>
+        <div class="modal-footer">
+            <button class="btn" onclick="closeModal('moveDomainModal')">取消</button>
+            <button class="btn btn-primary" onclick="confirmMoveDomain()"><i class="fa-solid fa-check"></i> 确认调整</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// ============================================================
+// [JS-00] 全局数据
+// ============================================================
+const STEPS = [
+    { id:1, name:"本体数据采集",  color:"var(--color-step1)", icon:"fa-database" },
+    { id:2, name:"实体数据提取",  color:"var(--color-step2)", icon:"fa-cube" },
+    { id:3, name:"关联构建",       color:"var(--color-step3)", icon:"fa-circle-nodes" },
+    { id:4, name:"知识融合入库",   color:"var(--color-step4)", icon:"fa-server" }
+];
+const OPERATORS = [
+    { type:"op1-1", step:1, name:"数据采集(DB)",    icon:"fa-table" },
+    { type:"op1-2", step:1, name:"数据采集(PDF)",   icon:"fa-file-pdf" },
+    { type:"op1-3", step:1, name:"数据采集(脚本)",  icon:"fa-code" },
+    { type:"op2-1", step:2, name:"实体提取+映射",   icon:"fa-brain" },
+    { type:"op3-1", step:3, name:"关联构建",          icon:"fa-link" },
+    { type:"op4-1", step:4, name:"知识融合入库",     icon:"fa-database" }
+];
+
+// ============================================================
+// 三级本体目录树结构（丰富版）
+// L1: 大域  ->  L2: 子域/子目录  ->  L3(leaf): 实体组/实体集
+// ============================================================
+const ONTOLOGY_TREE = [
+    {
+        id:'l1_crm', label:'CRM 客户管理域', color:'#165DFF', icon:'fa-building-user',
+        children:[
+            {
+                id:'l2_crm_user', label:'用户信息子域', color:'#165DFF', icon:'fa-users',
+                children:[
+                    { id:'onto_crm_user_base',    label:'基本信息实体组', color:'#165DFF', total:5,  newCnt:3, existCnt:2 },
+                    { id:'onto_crm_user_profile', label:'画像标签实体组', color:'#4080FF', total:4,  newCnt:2, existCnt:2 },
+                    { id:'onto_crm_user_device',  label:'设备绑定实体组', color:'#6AA3FF', total:3,  newCnt:3, existCnt:0 },
+                ]
+            },
+            {
+                id:'l2_crm_contract', label:'合同服务子域', color:'#0A3D91', icon:'fa-file-contract',
+                children:[
+                    { id:'onto_crm_contract_main', label:'合同主体实体组', color:'#0A3D91', total:4, newCnt:2, existCnt:2 },
+                    { id:'onto_crm_contract_sla',  label:'SLA 协议实体组', color:'#1A5CB5', total:3, newCnt:1, existCnt:2 },
+                ]
+            }
+        ]
+    },
+    {
+        id:'l1_order', label:'订单交易域', color:'#722ED1', icon:'fa-cart-shopping',
+        children:[
+            {
+                id:'l2_order_main', label:'主交易子域', color:'#722ED1', icon:'fa-receipt',
+                children:[
+                    { id:'onto_order_main',    label:'订单主实体组', color:'#722ED1', total:5, newCnt:3, existCnt:2 },
+                    { id:'onto_order_payment', label:'支付记录实体组', color:'#9B59B6', total:4, newCnt:2, existCnt:2 },
+                ]
+            },
+            {
+                id:'l2_order_promo', label:'促销优惠子域', color:'#531DAB', icon:'fa-tag',
+                children:[
+                    { id:'onto_order_coupon',   label:'优惠券实体组',   color:'#531DAB', total:3, newCnt:2, existCnt:1 },
+                    { id:'onto_order_activity', label:'营销活动实体组', color:'#6B21A8', total:3, newCnt:3, existCnt:0 },
+                    { id:'onto_order_refund',   label:'退款退货实体组', color:'#7C3AED', total:2, newCnt:0, existCnt:2 },
+                ]
+            }
+        ]
+    },
+    {
+        id:'l1_product', label:'产品目录域', color:'#14C9C9', icon:'fa-boxes-stacked',
+        children:[
+            {
+                id:'l2_product_catalog', label:'产品分类子域', color:'#14C9C9', icon:'fa-list-tree',
+                children:[
+                    { id:'onto_product_main',  label:'产品主实体组',   color:'#14C9C9', total:3, newCnt:1, existCnt:2 },
+                    { id:'onto_product_spec',  label:'规格参数实体组', color:'#0ABAD8', total:3, newCnt:2, existCnt:1 },
+                    { id:'onto_product_price', label:'定价策略实体组', color:'#06B6D4', total:2, newCnt:1, existCnt:1 },
+                ]
+            },
+            {
+                id:'l2_product_resource', label:'资源配置子域', color:'#0E7490', icon:'fa-sliders',
+                children:[
+                    { id:'onto_product_pkg',  label:'套餐实体组',     color:'#0E7490', total:4, newCnt:2, existCnt:2 },
+                    { id:'onto_product_flow', label:'流量资源实体组', color:'#155E75', total:3, newCnt:3, existCnt:0 },
+                ]
+            }
+        ]
+    },
+    {
+        id:'l1_network', label:'网络基础设施域', color:'#FA8C16', icon:'fa-tower-cell',
+        children:[
+            {
+                id:'l2_net_station', label:'基站无线子域', color:'#FA8C16', icon:'fa-broadcast-tower',
+                children:[
+                    { id:'onto_net_bs',   label:'基站实体组',   color:'#FA8C16', total:3, newCnt:2, existCnt:1 },
+                    { id:'onto_net_cell', label:'小区实体组',   color:'#F59E0B', total:3, newCnt:2, existCnt:1 },
+                    { id:'onto_net_freq', label:'频段资源实体组', color:'#D97706', total:2, newCnt:2, existCnt:0 },
+                ]
+            },
+            {
+                id:'l2_net_core', label:'核心网子域', color:'#B45309', icon:'fa-server',
+                children:[
+                    { id:'onto_net_node',   label:'网元实体组',     color:'#B45309', total:4, newCnt:3, existCnt:1 },
+                    { id:'onto_net_slice',  label:'网络切片实体组', color:'#92400E', total:3, newCnt:3, existCnt:0 },
+                    { id:'onto_net_region', label:'地理区域实体组', color:'#78350F', total:3, newCnt:1, existCnt:2 },
+                ]
+            },
+            {
+                id:'l2_net_equip', label:'设备资产子域', color:'#C2410C', icon:'fa-microchip',
+                children:[
+                    { id:'onto_net_hw',   label:'硬件设备实体组', color:'#C2410C', total:4, newCnt:3, existCnt:1 },
+                    { id:'onto_net_port', label:'端口接口实体组', color:'#9A3412', total:3, newCnt:1, existCnt:2 },
+                ]
+            }
+        ]
+    },
+    {
+        id:'l1_billing', label:'计费账务域', color:'#00B42A', icon:'fa-file-invoice-dollar',
+        children:[
+            {
+                id:'l2_billing_bill', label:'账单账期子域', color:'#00B42A', icon:'fa-calendar-check',
+                children:[
+                    { id:'onto_bill_main',   label:'账单主实体组',   color:'#00B42A', total:4, newCnt:2, existCnt:2 },
+                    { id:'onto_bill_detail', label:'账单明细实体组', color:'#16A34A', total:3, newCnt:1, existCnt:2 },
+                ]
+            },
+            {
+                id:'l2_billing_pay', label:'缴费发票子域', color:'#15803D', icon:'fa-receipt',
+                children:[
+                    { id:'onto_bill_pay',     label:'缴费记录实体组', color:'#15803D', total:3, newCnt:1, existCnt:2 },
+                    { id:'onto_bill_invoice', label:'发票实体组',     color:'#166534', total:2, newCnt:0, existCnt:2 },
+                ]
+            }
+        ]
+    },
+    {
+        id:'l1_complaint', label:'投诉工单域', color:'#F53F3F', icon:'fa-headset',
+        children:[
+            {
+                id:'l2_complaint_main', label:'工单主体子域', color:'#F53F3F', icon:'fa-ticket',
+                children:[
+                    { id:'onto_comp_ticket',  label:'投诉工单实体组', color:'#F53F3F', total:3, newCnt:3, existCnt:0 },
+                    { id:'onto_comp_order',   label:'处理流程实体组', color:'#EF4444', total:3, newCnt:2, existCnt:1 },
+                ]
+            },
+            {
+                id:'l2_complaint_quality', label:'质检回访子域', color:'#B91C1C', icon:'fa-star-half-stroke',
+                children:[
+                    { id:'onto_comp_survey', label:'满意度调查实体组', color:'#B91C1C', total:2, newCnt:2, existCnt:0 },
+                    { id:'onto_comp_qa',     label:'质检记录实体组',   color:'#991B1B', total:2, newCnt:1, existCnt:1 },
+                ]
+            }
+        ]
+    }
+];
+
+// 实体数据（节选几个叶节点，其他叶节点复用相同模板）
+const ENTITY_DATA = {
+    onto_crm_user_base:[
+        {id:'e1',name:'User',nameCn:'用户',isNew:true,attrs:[{en:'userId',cn:'用户ID'},{en:'userName',cn:'用户姓名'},{en:'phoneNumber',cn:'手机号码'},{en:'email',cn:'邮箱'},{en:'status',cn:'账户状态'},{en:'createTime',cn:'注册时间'}]},
+        {id:'e2',name:'UserAuth',nameCn:'认证信息',isNew:true,attrs:[{en:'authId',cn:'认证ID'},{en:'userId',cn:'用户ID'},{en:'idType',cn:'证件类型'},{en:'idNo',cn:'证件号码'},{en:'authStatus',cn:'实名状态'}]},
+        {id:'e3',name:'UserContact',nameCn:'联系方式',isNew:true,attrs:[{en:'contactId',cn:'联系ID'},{en:'userId',cn:'用户ID'},{en:'contactType',cn:'联系类型'},{en:'contactValue',cn:'联系内容'},{en:'isPrimary',cn:'是否主要'}]},
+        {id:'e4',name:'UserAddress',nameCn:'用户地址',isNew:false,attrs:[{en:'addressId',cn:'地址ID'},{en:'userId',cn:'用户ID'},{en:'province',cn:'省份'},{en:'city',cn:'城市'},{en:'district',cn:'区县'},{en:'detailAddr',cn:'详细地址'}]},
+        {id:'e5',name:'UserAccount',nameCn:'账户信息',isNew:false,attrs:[{en:'accountId',cn:'账户ID'},{en:'userId',cn:'用户ID'},{en:'balance',cn:'账户余额'},{en:'freezeAmount',cn:'冻结金额'},{en:'updateTime',cn:'更新时间'}]}
+    ],
+    onto_crm_user_profile:[
+        {id:'e1',name:'UserProfile',nameCn:'用户画像',isNew:true,attrs:[{en:'profileId',cn:'画像ID'},{en:'userId',cn:'用户ID'},{en:'ageGroup',cn:'年龄段'},{en:'gender',cn:'性别'},{en:'creditScore',cn:'信用评分'}]},
+        {id:'e2',name:'UserTag',nameCn:'用户标签',isNew:true,attrs:[{en:'tagId',cn:'标签ID'},{en:'userId',cn:'用户ID'},{en:'tagType',cn:'标签类型'},{en:'tagValue',cn:'标签值'},{en:'tagSource',cn:'标签来源'}]},
+        {id:'e3',name:'UserSegment',nameCn:'用户分群',isNew:false,attrs:[{en:'segId',cn:'分群ID'},{en:'segName',cn:'分群名称'},{en:'segRule',cn:'分群规则'},{en:'memberCnt',cn:'成员数量'}]},
+        {id:'e4',name:'VipLevel',nameCn:'VIP等级',isNew:false,attrs:[{en:'levelId',cn:'等级ID'},{en:'levelName',cn:'等级名称'},{en:'pointThreshold',cn:'积分门槛'},{en:'privilege',cn:'特权描述'}]}
+    ],
+    onto_order_main:[
+        {id:'e1',name:'Order',nameCn:'订单',isNew:true,attrs:[{en:'orderId',cn:'订单ID'},{en:'userId',cn:'用户ID'},{en:'totalAmount',cn:'订单总额'},{en:'payChannel',cn:'支付渠道'},{en:'orderStatus',cn:'订单状态'},{en:'createTime',cn:'创建时间'}]},
+        {id:'e2',name:'OrderItem',nameCn:'订单明细',isNew:true,attrs:[{en:'itemId',cn:'明细ID'},{en:'orderId',cn:'订单ID'},{en:'productId',cn:'产品ID'},{en:'qty',cn:'数量'},{en:'unitPrice',cn:'单价'},{en:'subtotal',cn:'小计'}]},
+        {id:'e3',name:'Payment',nameCn:'支付记录',isNew:true,attrs:[{en:'payId',cn:'支付ID'},{en:'orderId',cn:'订单ID'},{en:'amount',cn:'支付金额'},{en:'transNo',cn:'交易流水号'},{en:'payTime',cn:'支付时间'}]},
+        {id:'e4',name:'Delivery',nameCn:'派发记录',isNew:false,attrs:[{en:'deliverId',cn:'派发ID'},{en:'orderId',cn:'订单ID'},{en:'activateTime',cn:'激活时间'},{en:'expireTime',cn:'到期时间'},{en:'deliverStatus',cn:'派发状态'}]},
+        {id:'e5',name:'OrderLog',nameCn:'订单日志',isNew:false,attrs:[{en:'logId',cn:'日志ID'},{en:'orderId',cn:'订单ID'},{en:'opType',cn:'操作类型'},{en:'opTime',cn:'操作时间'},{en:'opUser',cn:'操作人'}]}
+    ],
+    onto_net_bs:[
+        {id:'e1',name:'BaseStation',nameCn:'基站',isNew:true,attrs:[{en:'stationId',cn:'基站ID'},{en:'stationName',cn:'基站名称'},{en:'stationType',cn:'基站类型'},{en:'longitude',cn:'经度'},{en:'latitude',cn:'纬度'},{en:'coverageRadius',cn:'覆盖半径'},{en:'status',cn:'运行状态'}]},
+        {id:'e2',name:'Cell',nameCn:'小区',isNew:true,attrs:[{en:'cellId',cn:'小区ID'},{en:'stationId',cn:'基站ID'},{en:'cellName',cn:'小区名称'},{en:'frequency',cn:'频率'},{en:'bandwidth',cn:'带宽'},{en:'azimuth',cn:'方位角'}]},
+        {id:'e3',name:'Region',nameCn:'区域',isNew:false,attrs:[{en:'regionId',cn:'区域ID'},{en:'regionName',cn:'区域名称'},{en:'parentId',cn:'上级区域ID'},{en:'level',cn:'层级'},{en:'areaCode',cn:'行政区划码'}]}
+    ],
+    onto_bill_main:[
+        {id:'e1',name:'Bill',nameCn:'账单',isNew:true,attrs:[{en:'billId',cn:'账单ID'},{en:'userId',cn:'用户ID'},{en:'billingCycle',cn:'账期'},{en:'totalFee',cn:'总费用'},{en:'discountFee',cn:'优惠金额'},{en:'realFee',cn:'实收金额'},{en:'dueDate',cn:'缴费截止日'}]},
+        {id:'e2',name:'BillDetail',nameCn:'账单明细',isNew:true,attrs:[{en:'detailId',cn:'明细ID'},{en:'billId',cn:'账单ID'},{en:'itemType',cn:'费项类型'},{en:'itemName',cn:'费项名称'},{en:'fee',cn:'费用'},{en:'unit',cn:'单位'}]},
+        {id:'e3',name:'BillCycle',nameCn:'账期',isNew:false,attrs:[{en:'cycleId',cn:'账期ID'},{en:'cycleStart',cn:'开始日期'},{en:'cycleEnd',cn:'结束日期'},{en:'status',cn:'账期状态'}]},
+        {id:'e4',name:'FeeItem',nameCn:'费项',isNew:false,attrs:[{en:'feeItemId',cn:'费项ID'},{en:'feeItemName',cn:'费项名称'},{en:'feeType',cn:'费项类型'},{en:'unitPrice',cn:'单价'},{en:'unit',cn:'计量单位'}]}
+    ],
+    onto_comp_ticket:[
+        {id:'e1',name:'Complaint',nameCn:'投诉工单',isNew:true,attrs:[{en:'complaintId',cn:'工单ID'},{en:'userId',cn:'用户ID'},{en:'typeCode',cn:'投诉类型'},{en:'content',cn:'投诉内容'},{en:'submitTime',cn:'提交时间'},{en:'priority',cn:'优先级'}]},
+        {id:'e2',name:'WorkOrder',nameCn:'处理工单',isNew:true,attrs:[{en:'orderId',cn:'工单ID'},{en:'complaintId',cn:'投诉ID'},{en:'handlerId',cn:'处理人'},{en:'assignTime',cn:'分配时间'},{en:'resolveTime',cn:'解决时间'}]},
+        {id:'e3',name:'EscalateRecord',nameCn:'升级记录',isNew:true,attrs:[{en:'escalateId',cn:'升级ID'},{en:'complaintId',cn:'投诉ID'},{en:'fromLevel',cn:'原级别'},{en:'toLevel',cn:'升级后级别'},{en:'escalateTime',cn:'升级时间'},{en:'reason',cn:'升级原因'}]}
+    ]
+};
+
+// 映射数据（节选，其余叶节点自动生成默认数据）
+const MAPPING_DATA = {
+    onto_crm_user_base:{
+        fields:[{name:'user_id',type:'VARCHAR(32)'},{name:'user_name',type:'VARCHAR(64)'},{name:'phone_number',type:'VARCHAR(20)'},{name:'status',type:'INT(2)'},{name:'create_time',type:'DATETIME'},{name:'email',type:'VARCHAR(128)'}],
+        attrs:[{name:'userId',entity:'User'},{name:'userName',entity:'User'},{name:'phoneNumber',entity:'User'},{name:'status',entity:'User'},{name:'createTime',entity:'User'},{name:'email',entity:'User'}],
+        links:[[0,0,'high'],[1,1,'high'],[2,2,'high'],[3,3,'high'],[4,4,'mid'],[5,5,'mid']]
+    },
+    onto_order_main:{
+        fields:[{name:'order_id',type:'VARCHAR(32)'},{name:'user_id',type:'VARCHAR(32)'},{name:'amount',type:'DECIMAL(10,2)'},{name:'pay_status',type:'INT(1)'},{name:'finish_time',type:'DATETIME'}],
+        attrs:[{name:'orderId',entity:'Order'},{name:'userId',entity:'Order'},{name:'totalAmount',entity:'Order'},{name:'payStatus',entity:'Order'},{name:'createTime',entity:'Order'}],
+        links:[[0,0,'high'],[1,1,'high'],[2,2,'high'],[3,3,'high'],[4,4,'mid']]
+    },
+    onto_net_bs:{
+        fields:[{name:'station_id',type:'VARCHAR(32)'},{name:'station_name',type:'VARCHAR(128)'},{name:'longitude',type:'DECIMAL(10,6)'},{name:'latitude',type:'DECIMAL(10,6)'},{name:'status',type:'INT(1)'}],
+        attrs:[{name:'stationId',entity:'BaseStation'},{name:'stationName',entity:'BaseStation'},{name:'longitude',entity:'BaseStation'},{name:'latitude',entity:'BaseStation'},{name:'status',entity:'BaseStation'}],
+        links:[[0,0,'high'],[1,1,'high'],[2,2,'high'],[3,3,'high'],[4,4,'mid']]
+    },
+    onto_bill_main:{
+        fields:[{name:'bill_id',type:'VARCHAR(32)'},{name:'user_id',type:'VARCHAR(32)'},{name:'total_fee',type:'DECIMAL(10,2)'},{name:'discount_fee',type:'DECIMAL(10,2)'},{name:'pay_time',type:'DATETIME'}],
+        attrs:[{name:'billId',entity:'Bill'},{name:'userId',entity:'Bill'},{name:'totalFee',entity:'Bill'},{name:'discountFee',entity:'Bill'},{name:'payTime',entity:'Bill'}],
+        links:[[0,0,'high'],[1,1,'high'],[2,2,'high'],[3,3,'mid'],[4,4,'mid']]
+    },
+    onto_comp_ticket:{
+        fields:[{name:'complaint_id',type:'VARCHAR(32)'},{name:'user_id',type:'VARCHAR(32)'},{name:'type_code',type:'VARCHAR(16)'},{name:'content',type:'TEXT'},{name:'handle_status',type:'INT(1)'}],
+        attrs:[{name:'complaintId',entity:'Complaint'},{name:'userId',entity:'Complaint'},{name:'typeCode',entity:'Complaint'},{name:'content',entity:'Complaint'},{name:'handleStatus',entity:'WorkOrder'}],
+        links:[[0,0,'high'],[1,1,'high'],[2,2,'high'],[3,3,'mid'],[4,4,'mid']]
+    }
+};
+const ENTITY_COLORS = ['#165DFF','#722ED1','#14C9C9','#FA8C16','#00B42A','#F53F3F','#EB2F96','#52C41A'];
+
+// 生成默认映射（对于没有单独定义映射的叶节点）
+function getDefaultMapping(ontoId) {
+    return {
+        fields:[{name:'id',type:'VARCHAR(32)'},{name:'name',type:'VARCHAR(128)'},{name:'status',type:'INT(1)'},{name:'create_time',type:'DATETIME'},{name:'update_time',type:'DATETIME'}],
+        attrs: [{name:'id',entity:'Entity'},{name:'name',entity:'Entity'},{name:'status',entity:'Entity'},{name:'createTime',entity:'Entity'},{name:'updateTime',entity:'Entity'}],
+        links:[[0,0,'high'],[1,1,'high'],[2,2,'mid'],[3,3,'mid'],[4,4,'low']]
+    };
+}
+
+// ============================================================
+// [JS-01] 视图切换
+// ============================================================
+let currentStepId = 1;
+let currentOntologyId = 'onto_crm_user_base';
+let currentMappingView = 'line';
+let reextractTimer = null;
+let movingEntityId = null, selectedTargetL1 = null;
+let openL1 = new Set(['l1_crm']), openL2 = new Set(['l2_crm_user']);
+
+function switchMainView(viewId) {
+    document.querySelectorAll('body > .view-section').forEach(el => el.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    if (viewId === 'taskView') switchTaskMode('form');
+}
+
+function switchTaskMode(mode) {
+    ['btnModeForm','btnModeCanvas'].forEach(id => document.getElementById(id).classList.remove('active'));
+    ['formWorkspace','canvasWorkspace','step2Workspace','step3Workspace','step4Workspace'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.remove('active');
+    });
+    const btnClear = document.getElementById('btnClearCanvas');
+    if (mode === 'form') {
+        document.getElementById('btnModeForm').classList.add('active');
+        btnClear.style.display = 'none';
+        const wsMap = {1:'formWorkspace',2:'step2Workspace',3:'step3Workspace',4:'step4Workspace'};
+        document.getElementById(wsMap[currentStepId] || 'formWorkspace').classList.add('active');
+    } else {
+        document.getElementById('btnModeCanvas').classList.add('active');
+        document.getElementById('canvasWorkspace').classList.add('active');
+        btnClear.style.display = 'flex';
+        setTimeout(() => renderEdges(), 50);
+    }
+}
+
+// ============================================================
+// [JS-02] 步骤条
+// ============================================================
+window.onload = () => { renderStepper(); switchStep(1); };
+
+function renderStepper() {
+    document.getElementById('stepperNav').innerHTML = STEPS.map(s => `
+        <div class="step-pill ${s.id === currentStepId ? 'active' : (s.id < currentStepId ? 'done' : '')}" onclick="switchStep(${s.id})">
+            <div class="step-num">${s.id < currentStepId ? '<i class="fa-solid fa-check" style="font-size:9px;"></i>' : s.id}</div>${s.name}
+        </div>`).join('');
+}
+
+function switchStep(stepId) {
+    currentStepId = stepId;
+    document.documentElement.style.setProperty('--active-step-color', STEPS.find(s => s.id === stepId).color);
+    renderStepper();
+    // 算子面板
+    const ops = OPERATORS.filter(op => op.step <= stepId);
+    const lc = document.getElementById('componentList'); lc.innerHTML = '';
+    for (let i = 1; i <= stepId; i++) {
+        const sOps = ops.filter(op => op.step === i); if (!sOps.length) continue;
+        const sm = STEPS.find(s => s.id === i);
+        let h = `<div class="comp-group"><div class="comp-group-title"><i class="fa-solid ${sm.icon}" style="color:${sm.color}"></i> 步骤 ${i}</div>`;
+        sOps.forEach(op => { h += `<div class="comp-item" draggable="true" ondragstart="dragStartOp(event,'${op.type}')"><div class="comp-icon" style="background:${sm.color};"><i class="fa-solid ${op.icon}"></i></div><div class="comp-text">${op.name}</div></div>`; });
+        h += `</div>`; lc.innerHTML += h;
+    }
+    if (document.getElementById('btnModeCanvas').classList.contains('active')) return;
+    ['formWorkspace','canvasWorkspace','step2Workspace','step3Workspace','step4Workspace'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
+    if (stepId === 1) { document.getElementById('formWorkspace').classList.add('active'); }
+    else if (stepId === 2) {
+        document.getElementById('step2Workspace').classList.add('active');
+        renderOntologyTree();
+        showAiRecognition();
+    }
+    else if (stepId === 3) { document.getElementById('step3Workspace').classList.add('active'); }
+    else if (stepId === 4) { document.getElementById('step4Workspace').classList.add('active'); }
+}
+
+// ============================================================
+// [JS-03] 采集项切换
+// ============================================================
+function onCollectItemChange(val) {
+    const dsRow     = document.getElementById('rowDataSource');
+    const scriptRow = document.getElementById('rowScriptAction');
+    const scopeCard = document.getElementById('cardDataScope');
+    if (val === 'script') {
+        dsRow.style.display = 'none';
+        scriptRow.style.display = 'flex';
+        // 提交脚本后才显示采集范围，初始隐藏
+        scopeCard.style.display = 'none';
+    } else {
+        dsRow.style.display = 'flex';
+        scriptRow.style.display = 'none';
+        scopeCard.style.display = 'block';
+    }
+}
+function switchDataType(type) {
+    ['segStruct','segUnstruct'].forEach(id => document.getElementById(id).classList.remove('active'));
+    const listEl = document.getElementById('targetTableList'), emptyEl = document.getElementById('unstructEmptyState');
+    const si = document.getElementById('collectItemSelect'), ds = document.getElementById('dataSourceSelect'), ts = document.getElementById('tableSearch');
+    if (type === 'struct') {
+        document.getElementById('segStruct').classList.add('active');
+        si.disabled = false; ds.disabled = false; ts.disabled = false;
+        listEl.style.display = 'table'; emptyEl.style.display = 'none';
+    } else {
+        document.getElementById('segUnstruct').classList.add('active');
+        si.disabled = true; ds.disabled = true; ts.disabled = true;
+        listEl.style.display = 'none'; emptyEl.style.display = 'block';
+    }
+}
+function fakeSearch(val) {
+    document.querySelectorAll('.table-list-item').forEach(item => {
+        item.style.display = item.querySelector('.tb-name').innerText.toLowerCase().includes(val.toLowerCase()) ? 'table-row' : 'none';
+    });
+}
+
+// ============================================================
+// [JS-04] IDE 编辑器
+// ============================================================
+function openIDE() { document.getElementById('ideModal').style.display = 'flex'; }
+function toggleAddDsForm() { document.getElementById('ideDsForm').classList.toggle('show'); }
+function toggleIdeDs(id) {
+    const t = document.getElementById('ideTables_'+id), c = document.getElementById('ideChev_'+id);
+    const open = t.style.display === 'block';
+    t.style.display = open ? 'none' : 'block';
+    c.style.transform = open ? '' : 'rotate(90deg)';
+}
+let ideTabCount = 1;
+function addNewTab() {
+    ideTabCount++;
+    const tabs = document.querySelector('.ide-tabs');
+    const d = document.createElement('div'); d.className = 'ide-tab';
+    d.innerHTML = `<i class="fa-solid fa-file-code" style="color:#89B4FA;"></i>query_${ideTabCount}.sql`;
+    tabs.insertBefore(d, tabs.lastElementChild);
+}
+let ideTreeDsCount = 2;
+function addDsToTree() {
+    ideTreeDsCount++;
+    const dsType = document.getElementById('ideDsType').value;
+    const dsId = 'ds_' + ideTreeDsCount;
+    const div = document.createElement('div'); div.className = 'ide-tree-ds';
+    div.innerHTML = `<div class="ide-tree-ds-header" onclick="toggleIdeDs('${dsId}')"><i class="fa-solid fa-chevron-right" id="ideChev_${dsId}" style="font-size:9px;transition:transform .2s;"></i><i class="fa-solid fa-database ide-tree-ds-icon"></i><span>${dsType} 数据源 ${ideTreeDsCount}</span></div><div id="ideTables_${dsId}" style="display:none;"><div class="ide-tree-table" style="color:#6C7086;font-style:italic;font-size:11px;padding-left:28px;">连接成功，暂无表</div></div>`;
+    document.getElementById('ideTree').appendChild(div);
+    toggleAddDsForm();
+}
+function insertTableToSQL(t) {
+    const ed = document.getElementById('ideCodeEditor');
+    const pos = ed.selectionStart;
+    ed.value = ed.value.substring(0, pos) + t + ed.value.substring(pos);
+    ed.focus();
+}
+// 提交脚本后显示采集范围
+function submitScript() {
+    document.getElementById('scriptStatus').textContent = '已配置 (script_collect_v1.sql)';
+    document.getElementById('scriptStatus').style.color = 'var(--success-color)';
+    closeModal('ideModal');
+    // 提交后展示采集范围
+    document.getElementById('cardDataScope').style.display = 'block';
+}
+
+// ============================================================
+// [JS-05] 本体目录树渲染（三级）
+// ============================================================
+function renderOntologyTree() {
+    const container = document.getElementById('ontologyList');
+    container.innerHTML = ONTOLOGY_TREE.map(l1 => {
+        const isL1Open = openL1.has(l1.id);
+        const l1Total  = l1.children.reduce((s, l2) => s + l2.children.reduce((ss, lf) => ss + lf.total, 0), 0);
+        const l1New    = l1.children.reduce((s, l2) => s + l2.children.reduce((ss, lf) => ss + lf.newCnt, 0), 0);
+        return `
+        <div class="onto-l1 ${isL1Open ? 'open' : ''}" id="l1_wrap_${l1.id}">
+            <div class="onto-l1-header" onclick="toggleL1('${l1.id}')">
+                <div class="onto-l1-icon" style="background:${l1.color};"><i class="fa-solid ${l1.icon}"></i></div>
+                <span class="onto-l1-label">${l1.label}</span>
+                <span class="onto-l1-count">${l1Total}·${l1New}新</span>
+                <i class="fa-solid fa-chevron-right onto-chevron"></i>
+            </div>
+            <div class="onto-l1-children">
+                ${l1.children.map(l2 => {
+                    const isL2Open = openL2.has(l2.id);
+                    const l2Total  = l2.children.reduce((s, lf) => s + lf.total, 0);
+                    const l2New    = l2.children.reduce((s, lf) => s + lf.newCnt, 0);
+                    return `
+                    <div class="onto-l2 ${isL2Open ? 'open' : ''}" id="l2_wrap_${l2.id}">
+                        <div class="onto-l2-header" onclick="toggleL2('${l2.id}')">
+                            <div class="onto-l2-dot" style="background:${l2.color};"><i class="fa-solid ${l2.icon}" style="font-size:8px;"></i></div>
+                            <span class="onto-l2-label">${l2.label}</span>
+                            <span class="onto-l2-count">${l2Total}·${l2New}新</span>
+                            <i class="fa-solid fa-chevron-right onto-chevron"></i>
+                        </div>
+                        <div class="onto-l2-children">
+                            ${l2.children.map(leaf => `
+                                <div class="onto-leaf ${leaf.id === currentOntologyId ? 'active' : ''}"
+                                     id="leaf_${leaf.id}"
+                                     onclick="switchOntology('${leaf.id}','${l2.id}','${l1.id}')">
+                                    <div class="onto-leaf-dot" style="background:${leaf.color};"></div>
+                                    <span class="onto-leaf-name">${leaf.label}</span>
+                                    <span class="onto-leaf-cnt" style="color:${leaf.id === currentOntologyId ? 'var(--primary-color)' : 'var(--text-secondary);'}">${leaf.total}</span>
+                                </div>`).join('')}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggleL1(id) {
+    if (openL1.has(id)) openL1.delete(id); else openL1.add(id);
+    renderOntologyTree();
+}
+function toggleL2(id) {
+    if (openL2.has(id)) openL2.delete(id); else openL2.add(id);
+    renderOntologyTree();
+}
+
+function switchOntology(leafId, l2Id, l1Id) {
+    currentOntologyId = leafId;
+    openL1.add(l1Id); openL2.add(l2Id);
+    renderOntologyTree();
+
+    // 查找叶节点信息
+    let leaf = null;
+    ONTOLOGY_TREE.forEach(l1 => l1.children.forEach(l2 => l2.children.forEach(lf => { if (lf.id === leafId) leaf = lf; })));
+    if (!leaf) return;
+    document.getElementById('currentOntologyName').textContent = leaf.label;
+    document.getElementById('statTotal').textContent    = leaf.total;
+    document.getElementById('statNew').textContent      = leaf.newCnt;
+    document.getElementById('statExisting').textContent = leaf.existCnt;
+    document.getElementById('entityPageTotal').textContent = leaf.total;
+
+    renderEntityList(leafId);
+    triggerMappingRecognition();
+}
+
+// ============================================================
+// [JS-06] 实体列表渲染
+// ============================================================
+function getLeafLabel(leafId) {
+    let label = '';
+    ONTOLOGY_TREE.forEach(l1 => l1.children.forEach(l2 => l2.children.forEach(lf => { if (lf.id === leafId) label = lf.label; })));
+    return label;
+}
+
+function renderEntityList(ontoId) {
+    const entities = ENTITY_DATA[ontoId] || generateDefaultEntities(ontoId);
+    const container = document.getElementById('entityListBody');
+    const domainLabel = getLeafLabel(ontoId);
+    container.innerHTML = entities.map((ent, idx) => {
+        const color = ENTITY_COLORS[idx % ENTITY_COLORS.length];
+        const tagHtml = ent.isNew
+            ? `<span class="tag-new"><i class="fa-solid fa-sparkles"></i> 新发现</span>`
+            : `<span class="tag-existing"><i class="fa-solid fa-check-circle"></i> 已入库</span>`;
+        const attrsHtml = ent.attrs.map(a => `<span class="attr-tag"><span class="attr-tag-en">${a.en}</span><span class="attr-tag-cn">${a.cn}</span></span>`).join('');
+        return `
+        <div class="entity-card" id="ecard_${ent.id}">
+            <div class="entity-card-header" onclick="toggleEntityCard('ecard_${ent.id}')">
+                <div class="entity-card-left">
+                    <div class="entity-type-dot" style="background:${color};"></div>
+                    <span class="entity-name">${ent.name}</span>
+                    <span class="entity-name-cn">${ent.nameCn}</span>
+                </div>
+                <div class="entity-card-right">
+                    ${tagHtml}
+                    <span style="font-size:10px;color:var(--text-secondary);">${ent.attrs.length}属性</span>
+                    <div class="entity-ops" onclick="event.stopPropagation()">
+                        <div class="entity-op-btn" onclick="openMoveDomainModal('${ent.id}','${ent.name}','${ent.nameCn}','${domainLabel}')" title="调整所属域"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                        <div class="entity-op-btn" title="编辑"><i class="fa-solid fa-pen"></i></div>
+                        <div class="entity-op-btn del" title="移除"><i class="fa-solid fa-trash-can"></i></div>
+                    </div>
+                    <i class="fa-solid fa-chevron-down entity-expand-icon"></i>
+                </div>
+            </div>
+            <div class="entity-card-body">
+                <div style="font-size:10px;color:var(--text-secondary);margin-bottom:6px;"><i class="fa-solid fa-tag"></i> 属性列表（${ent.attrs.length} 个）</div>
+                <div class="attr-list">${attrsHtml}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function generateDefaultEntities(ontoId) {
+    return [
+        {id:'e1',name:'Entity',nameCn:'实体',isNew:true,attrs:[{en:'id',cn:'主键ID'},{en:'name',cn:'名称'},{en:'status',cn:'状态'},{en:'createTime',cn:'创建时间'}]},
+        {id:'e2',name:'SubEntity',nameCn:'子实体',isNew:false,attrs:[{en:'subId',cn:'子ID'},{en:'parentId',cn:'父ID'},{en:'value',cn:'值'},{en:'updateTime',cn:'更新时间'}]}
+    ];
+}
+
+function toggleEntityCard(cardId) { document.getElementById(cardId).classList.toggle('expanded'); }
+
+// ============================================================
+// [JS-07] AI 识别
+// ============================================================
+function showAiRecognition() {
+    const ov = document.getElementById('recognitionOverlay');
+    ov.style.display = 'flex';
+    document.getElementById('entityListBody').innerHTML = '';
+    document.getElementById('mappingRecognizingOverlay').style.display = 'flex';
+    setTimeout(() => {
+        ov.style.display = 'none';
+        document.getElementById('mappingRecognizingOverlay').style.display = 'none';
+        currentOntologyId = 'onto_crm_user_base';
+        openL1.add('l1_crm'); openL2.add('l2_crm_user');
+        const leaf = (() => { let r = null; ONTOLOGY_TREE.forEach(l1 => l1.children.forEach(l2 => l2.children.forEach(lf => { if (lf.id === 'onto_crm_user_base') r = lf; }))); return r; })();
+        if (leaf) {
+            document.getElementById('currentOntologyName').textContent = leaf.label;
+            document.getElementById('statTotal').textContent    = leaf.total;
+            document.getElementById('statNew').textContent      = leaf.newCnt;
+            document.getElementById('statExisting').textContent = leaf.existCnt;
+            document.getElementById('entityPageTotal').textContent = leaf.total;
+        }
+        renderOntologyTree();
+        renderEntityList('onto_crm_user_base');
+        renderMappingPanel('onto_crm_user_base');
+    }, 3000);
+}
+
+function triggerMappingRecognition() {
+    const ov = document.getElementById('mappingRecognizingOverlay');
+    ov.style.display = 'flex';
+    setTimeout(() => { ov.style.display = 'none'; renderMappingPanel(currentOntologyId); }, 2500);
+}
+
+// ============================================================
+// [JS-08] 重新识别
+// ============================================================
+function confirmReextract() { document.getElementById('reextractConfirmModal').style.display = 'flex'; }
+
+function startReextract() {
+    closeModal('reextractConfirmModal');
+    setProgress(0,'正在扫描数据表结构...','初始化识别任务...');
+    document.getElementById('btnProgressClose').style.display = 'none';
+    document.getElementById('reextractProgressModal').style.display = 'flex';
+    document.getElementById('recognitionOverlay').style.display = 'flex';
+    document.getElementById('entityListBody').innerHTML = '';
+    document.getElementById('mappingRecognizingOverlay').style.display = 'flex';
+    const stages = [
+        {pct:15,label:'扫描数据表结构...',stage:'扫描 8 张数据表...'},
+        {pct:30,label:'解析字段类型...',stage:'分析字段语义特征...'},
+        {pct:50,label:'大模型推断中...',stage:'调用 DeepSeek R1.0...'},
+        {pct:68,label:'实体去重...',stage:'与知识库比对...'},
+        {pct:82,label:'生成映射...',stage:'构建字段属性关联...'},
+        {pct:95,label:'最终验证...',stage:'校验识别结果...'},
+        {pct:100,label:'识别完成！',stage:'共识别 5 个实体，3 新发现'},
+    ];
+    let idx = 0;
+    reextractTimer = setInterval(() => {
+        if (idx >= stages.length) {
+            clearInterval(reextractTimer); reextractTimer = null;
+            document.getElementById('btnProgressClose').style.display = 'flex';
+            document.getElementById('recognitionOverlay').style.display = 'none';
+            document.getElementById('mappingRecognizingOverlay').style.display = 'none';
+            renderEntityList(currentOntologyId); renderMappingPanel(currentOntologyId); renderOntologyTree();
+            return;
+        }
+        setProgress(stages[idx].pct, stages[idx].label, stages[idx].stage); idx++;
+    }, 900);
+}
+
+function setProgress(pct, label, stage) {
+    document.getElementById('progressBarFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent   = pct + '%';
+    document.getElementById('progressLabel').textContent = label;
+    document.getElementById('progressStage').innerHTML   = `<i class="fa-solid ${pct < 100 ? 'fa-circle-notch fa-spin' : 'fa-circle-check'}" style="color:${pct < 100 ? 'var(--processing-color)' : 'var(--success-color)'}"></i><span>${stage}</span>`;
+}
+function dismissProgressModal() { closeModal('reextractProgressModal'); }
+
+// ============================================================
+// [JS-09] 调整实体所属域
+// ============================================================
+function openMoveDomainModal(entityId, name, nameCn, currentDomain) {
+    movingEntityId = entityId;
+    document.getElementById('movingEntityName').textContent     = `${name}（${nameCn}）`;
+    document.getElementById('movingEntityCurrentDomain').textContent = currentDomain;
+    document.getElementById('domainOptionList').innerHTML = ONTOLOGY_TREE.map(l1 => `
+        <div class="domain-option" onclick="selectDomainOption(this,'${l1.id}')" data-id="${l1.id}">
+            <div class="domain-option-icon" style="background:${l1.color};"><i class="fa-solid ${l1.icon}"></i></div>
+            <div><div style="font-size:12px;font-weight:500;">${l1.label}</div><div style="font-size:11px;color:var(--text-secondary);">${l1.children.map(l2=>l2.label).join(' · ')}</div></div>
+        </div>`).join('');
+    document.getElementById('moveDomainModal').style.display = 'flex';
+}
+function selectDomainOption(el, id) {
+    document.querySelectorAll('.domain-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected'); selectedTargetL1 = id;
+}
+function confirmMoveDomain() {
+    if (!selectedTargetL1) { return; }
+    const target = ONTOLOGY_TREE.find(l1 => l1.id === selectedTargetL1);
+    closeModal('moveDomainModal'); selectedTargetL1 = null;
+    const tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1D2129;color:#fff;padding:9px 18px;border-radius:6px;font-size:13px;z-index:9999;display:flex;align-items:center;gap:7px;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+    tip.innerHTML = `<i class="fa-solid fa-check-circle" style="color:var(--success-color);"></i>已成功调整至「${target.label}」`;
+    document.body.appendChild(tip); setTimeout(() => tip.remove(), 2500);
+}
+
+// ============================================================
+// [JS-10] 映射面板
+// ============================================================
+function switchMappingView(mode) {
+    currentMappingView = mode;
+    document.getElementById('btnLineView').classList.toggle('active',  mode === 'line');
+    document.getElementById('btnTableView').classList.toggle('active', mode === 'table');
+    const lv = document.getElementById('mappingLineView'), tv = document.getElementById('mappingTableView');
+    if (mode === 'line') { lv.style.display = 'flex'; tv.classList.remove('active'); }
+    else { lv.style.display = 'none'; tv.classList.add('active'); renderMappingTable(currentOntologyId); }
+}
+function renderMappingPanel(ontoId) {
+    const data = MAPPING_DATA[ontoId] || getDefaultMapping(ontoId);
+    document.getElementById('mappingPageInfo').textContent = `共 ${data.links.length} 条映射关系`;
+    if (currentMappingView === 'line') renderMappingLines(ontoId);
+    else renderMappingTable(ontoId);
+}
+function renderMappingLines(ontoId) {
+    const data = MAPPING_DATA[ontoId] || getDefaultMapping(ontoId);
+    const lc = document.getElementById('mappingLeftCol'), rc = document.getElementById('mappingRightCol');
+    lc.innerHTML = `<div class="mapping-col-title">物理字段</div>` + data.fields.map((f,i) => `<div class="mapping-field-item" id="mf_${i}">${f.name}<span class="field-type">${f.type}</span></div>`).join('');
+    rc.innerHTML = `<div class="mapping-col-title">实体属性</div>` + data.attrs.map((a,i)  => `<div class="mapping-field-item" id="ma_${i}">${a.name}<span class="field-type">${a.entity}</span></div>`).join('');
+    setTimeout(() => drawMappingLines(ontoId), 80);
+}
+function drawMappingLines(ontoId) {
+    const data = MAPPING_DATA[ontoId] || getDefaultMapping(ontoId);
+    const svg = document.getElementById('mappingSvg'), sr = document.getElementById('mappingSvgMid').getBoundingClientRect();
+    const cc  = {high:'#00B42A',mid:'#FF7D00',low:'#F53F3F'};
+    svg.innerHTML = '';
+    data.links.forEach(([li,ri,conf]) => {
+        const le = document.getElementById('mf_'+li), re = document.getElementById('ma_'+ri);
+        if (!le || !re) return;
+        const lr = le.getBoundingClientRect(), rr = re.getBoundingClientRect();
+        const x1=lr.right-sr.left, y1=lr.top+lr.height/2-sr.top, x2=rr.left-sr.left, y2=rr.top+rr.height/2-sr.top;
+        const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+        p.setAttribute('d',`M${x1},${y1} C${(x1+x2)/2},${y1} ${(x1+x2)/2},${y2} ${x2},${y2}`);
+        p.setAttribute('fill','none'); p.setAttribute('stroke',cc[conf]); p.setAttribute('stroke-width','1.5'); p.setAttribute('stroke-opacity','0.75');
+        svg.appendChild(p);
+        [{x:x1,y:y1},{x:x2,y:y2}].forEach(pt => { const c=document.createElementNS('http://www.w3.org/2000/svg','circle'); c.setAttribute('cx',pt.x); c.setAttribute('cy',pt.y); c.setAttribute('r','3'); c.setAttribute('fill',cc[conf]); svg.appendChild(c); });
+    });
+    data.links.forEach(([li,ri]) => { const le=document.getElementById('mf_'+li),re=document.getElementById('ma_'+ri); if(le)le.classList.add('active'); if(re)re.classList.add('active'); });
+}
+function renderMappingTable(ontoId) {
+    const data = MAPPING_DATA[ontoId] || getDefaultMapping(ontoId);
+    const cl = {high:['conf-high','高'],mid:['conf-mid','中'],low:['conf-low','低']};
+    document.getElementById('mappingTableView').innerHTML = `<table class="mapping-tbl">
+        <thead><tr><th width="30%">物理字段</th><th width="8%" style="text-align:center;"></th><th width="30%">实体属性</th><th>置信度</th></tr></thead>
+        <tbody>${data.links.map(([li,ri,conf]) => { const f=data.fields[li],a=data.attrs[ri]; return `<tr><td>${f.name}<br><span style="font-size:10px;color:var(--text-secondary);">${f.type}</span></td><td class="mapped-arrow"><i class="fa-solid fa-arrow-right"></i></td><td>${a.name}<br><span style="font-size:10px;color:var(--text-secondary);">${a.entity}</span></td><td><span class="conf-badge ${cl[conf][0]}">${cl[conf][1]}</span></td></tr>`; }).join('')}</tbody>
+    </table>`;
+}
+
+// ============================================================
+// [JS-11] 通用模态框
+// ============================================================
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function openSqlModal(t) {
+    document.getElementById('sqlTableName').innerText = t;
+    document.getElementById('fakeSqlInput').value = `SELECT *\nFROM ${t}\nWHERE status = 'ACTIVE'\nLIMIT 500;`;
+    document.getElementById('sqlModal').style.display = 'flex';
+}
+function openFieldModal(t) { document.getElementById('fieldTableName').innerText = t; document.getElementById('fieldModal').style.display = 'flex'; }
+
+// ============================================================
+// [JS-12] 画布引擎
+// ============================================================
+let nodesData=[],edgesData=[],idCounter=1;
+let draggedOpType=null,draggingNodeId=null,dragOffset={x:0,y:0};
+let isConnecting=false,connectSourceNode=null,nodeToRename=null;
+function dragStartOp(e,type){draggedOpType=type;}
+function allowDrop(e){e.preventDefault();}
+function drop(e){
+    e.preventDefault(); if(!draggedOpType)return;
+    const cr=document.getElementById('canvasArea').getBoundingClientRect();
+    const op=OPERATORS.find(o=>o.type===draggedOpType), sm=STEPS.find(s=>s.id===op.step);
+    nodesData.push({id:'node_'+(idCounter++),type:op.type,step:op.step,name:op.name,icon:op.icon,color:sm.color,x:e.clientX-cr.left-95,y:e.clientY-cr.top-28});
+    renderNodes(); draggedOpType=null;
+}
+function renderNodes(){
+    document.getElementById('nodes-container').innerHTML=nodesData.map(n=>`
+        <div class="canvas-node" id="${n.id}" style="left:${n.x}px;top:${n.y}px;">
+            <div class="node-actions"><i class="fa-solid fa-pen action-icon edit" onclick="openRenameModal('${n.id}')"></i><i class="fa-solid fa-trash-can action-icon delete" onclick="deleteNode('${n.id}')"></i></div>
+            <div class="port in" onmousedown="startConnect(event,null)" onmouseup="endConnect(event,'${n.id}')"></div>
+            <div class="node-color-bar" style="background:${n.color};"></div>
+            <div class="node-content" onmousedown="startNodeDrag(event,'${n.id}')" onclick="openDrawer('${n.id}')">
+                <div class="node-header"><i class="fa-solid ${n.icon}" style="color:${n.color};font-size:12px;"></i><div class="node-title">${n.name}</div></div>
+                <div class="node-desc">步骤 ${n.step}</div>
+            </div>
+            <div class="port out" onmousedown="startConnect(event,'${n.id}')"></div>
+        </div>`).join('');
+    renderEdges();
+}
+function startNodeDrag(e,id){
+    if(e.button!==0)return; draggingNodeId=id;
+    document.getElementById(id).classList.add('selected');
+    const r=document.getElementById(id).getBoundingClientRect();
+    dragOffset={x:e.clientX-r.left,y:e.clientY-r.top};
+    document.addEventListener('mousemove',nodeDrag); document.addEventListener('mouseup',endNodeDrag);
+}
+function nodeDrag(e){
+    if(!draggingNodeId)return;
+    const cr=document.getElementById('canvasArea').getBoundingClientRect();
+    const n=nodesData.find(n=>n.id===draggingNodeId);
+    n.x=e.clientX-cr.left-dragOffset.x; n.y=e.clientY-cr.top-dragOffset.y;
+    const el=document.getElementById(draggingNodeId); el.style.left=n.x+'px'; el.style.top=n.y+'px'; renderEdges();
+}
+function endNodeDrag(){
+    if(draggingNodeId){document.getElementById(draggingNodeId).classList.remove('selected');draggingNodeId=null;}
+    document.removeEventListener('mousemove',nodeDrag); document.removeEventListener('mouseup',endNodeDrag);
+}
+function startConnect(e,sid){e.stopPropagation();if(!sid)return;isConnecting=true;connectSourceNode=sid;document.addEventListener('mousemove',tempLineDrag);document.addEventListener('mouseup',cancelConnect);}
+function tempLineDrag(e){
+    if(!isConnecting)return;
+    const cr=document.getElementById('canvasArea').getBoundingClientRect();
+    const sp=document.getElementById(connectSourceNode).querySelector('.port.out').getBoundingClientRect();
+    document.getElementById('temp-line').setAttribute('d',createBezier(sp.left-cr.left+sp.width/2,sp.top-cr.top+sp.height/2,e.clientX-cr.left,e.clientY-cr.top));
+}
+function endConnect(e,tid){
+    e.stopPropagation();
+    if(isConnecting&&connectSourceNode&&connectSourceNode!==tid&&!edgesData.find(ed=>ed.sourceNode===connectSourceNode&&ed.targetNode===tid)){
+        edgesData.push({id:'edge_'+Date.now(),sourceNode:connectSourceNode,targetNode:tid}); renderEdges();
+    }
+    cleanTempLine();
+}
+function cancelConnect(){cleanTempLine();}
+function cleanTempLine(){isConnecting=false;connectSourceNode=null;document.getElementById('temp-line').setAttribute('d','');document.removeEventListener('mousemove',tempLineDrag);document.removeEventListener('mouseup',cancelConnect);}
+function renderEdges(){
+    const cr=document.getElementById('canvasArea').getBoundingClientRect();
+    document.getElementById('edges-container').innerHTML=edgesData.map(e=>{
+        const sn=document.getElementById(e.sourceNode),tn=document.getElementById(e.targetNode); if(!sn||!tn)return'';
+        const sp=sn.querySelector('.port.out').getBoundingClientRect(),tp=tn.querySelector('.port.in').getBoundingClientRect();
+        return `<path class="connection-line" d="${createBezier(sp.left-cr.left+sp.width/2,sp.top-cr.top+sp.height/2,tp.left-cr.left+tp.width/2,tp.top-cr.top+tp.height/2)}" onclick="deleteEdge('${e.id}')"></path>`;
+    }).join('');
+}
+function createBezier(x1,y1,x2,y2){const o=Math.max(Math.abs(x2-x1)/2,60);return `M ${x1} ${y1} C ${x1+o} ${y1}, ${x2-o} ${y2}, ${x2} ${y2}`;}
+function deleteNode(id){nodesData=nodesData.filter(n=>n.id!==id);edgesData=edgesData.filter(e=>e.sourceNode!==id&&e.targetNode!==id);renderNodes();closeDrawer();}
+function deleteEdge(id){edgesData=edgesData.filter(e=>e.id!==id);renderEdges();}
+function clearCanvas(){nodesData=[];edgesData=[];renderNodes();closeDrawer();}
+function openDrawer(nid){const n=nodesData.find(n=>n.id===nid);if(!n)return;document.getElementById('drawerNodeName').value=n.name;document.getElementById('drawerNodeType').value=OPERATORS.find(o=>o.type===n.type).name;document.getElementById('configDrawer').classList.add('open');}
+function closeDrawer(){document.getElementById('configDrawer').classList.remove('open');}
+function openRenameModal(id){nodeToRename=id;document.getElementById('renameInput').value=nodesData.find(n=>n.id===id).name;document.getElementById('renameModal').style.display='flex';}
+function confirmRename(){const nv=document.getElementById('renameInput').value.trim();if(nv&&nodeToRename){nodesData.find(n=>n.id===nodeToRename).name=nv;renderNodes();}closeModal('renameModal');}
+window.addEventListener('resize',()=>{
+    if(document.getElementById('canvasWorkspace').classList.contains('active'))renderEdges();
+    if(currentStepId===2&&currentMappingView==='line')drawMappingLines(currentOntologyId);
+});
+</script>
+</body>
+</html>

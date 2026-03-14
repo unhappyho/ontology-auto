@@ -1,0 +1,134 @@
+/* ========================================================= */
+/* Main CSS - Tailwind 入口文件                               */
+/* ========================================================= */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义基础样式 */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    font-size: 14px;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  ul {
+    list-style: none;
+  }
+}
+
+/* ========================================================= */
+/* 01 - 公共组件样式                                           */
+/* ========================================================= */
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background-color: #f2f3f5;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #1D39C4;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.btn-warning {
+  background-color: var(--warning-color);
+  border-color: var(--warning-color);
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: #d46b00;
+}
+
+.btn-success {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+
+.btn-ghost {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: transparent;
+}
+
+.btn-ghost:hover {
+  background: var(--primary-light);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  background-color: #F2F3F5;
+  color: var(--text-regular);
+}
+
+.status-badge.processing {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.status-badge.success {
+  background-color: #E8FFEA;
+  color: var(--success-color);
+}
+
+.action-link {
+  color: var(--primary-color);
+  cursor: pointer;
+  margin-left: 16px;
+  font-size: 13px;
+  user-select: none;
+}
+
+.action-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.action-link.danger {
+  color: var(--danger-color);
+}

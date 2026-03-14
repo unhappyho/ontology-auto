@@ -1,0 +1,11 @@
+{
+    "env": {
+        "ANTHROPIC_BASE_URL": "https://lab.iwhalecloud.com/gpt-proxy/anthropic",
+        "ANTHROPIC_AUTH_TOKEN": "ailab_6TMUC6upMoja/lCgoFIs17pzihzIpZb9+OTm3s//Lt0CdicTPGT5BYLJEZX781JNlpA9FN/VhdMoe84YcT3kb2TDcDmGdv82YGh1UYGudKJsmM2pKWRLTw0=",
+        "ANTHROPIC_MODEL": "MiniMax-M2.5",
+        "ANTHROPIC_SMALL_FAST_MODEL": "MiniMax-M2.5",
+        "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": 1,
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": 1
+    },
+    "autoUpdatesChannel": "stable"
+}

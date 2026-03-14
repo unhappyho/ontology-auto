@@ -1,0 +1,322 @@
+/* ========================================================= */
+/* Views - 各视图样式                                          */
+/* ========================================================= */
+
+/* 列表区域 */
+.list-content-area {
+  flex: 1;
+  padding: 16px 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* 空间配置卡片 */
+.workspace-card {
+  background-color: var(--bg-white);
+  border-radius: 8px;
+  padding: 14px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.workspace-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.workspace-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 16px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  background: #FAFAFA;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.info-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.info-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.info-value {
+  font-size: 13px;
+  color: var(--text-main);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.info-badge {
+  font-size: 11px;
+  background: #E8FFEA;
+  color: var(--success-color);
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* 任务列表卡片 */
+.content-card {
+  background-color: var(--bg-white);
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  border: 1px solid var(--border-color);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.table-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.data-table th {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 12px;
+  background-color: #FAFAFA;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.data-table td {
+  font-size: 13px;
+}
+
+.data-table tbody tr:hover {
+  background-color: #FAFAFA;
+}
+
+.col-actions {
+  text-align: right;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.pagination {
+  display: flex;
+  gap: 6px;
+}
+
+.page-item {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--bg-white);
+  font-size: 12px;
+}
+
+.page-item.active {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.page-item:hover:not(.active) {
+  background-color: #f2f3f5;
+}
+
+/* ========================================================= */
+/* 视图2: 任务操作页 TopBar & Stepper                       */
+/* ========================================================= */
+
+#taskView {
+  flex-direction: column;
+  background: var(--bg-body);
+}
+
+.editor-topbar {
+  height: 56px;
+  background: var(--bg-white);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.editor-title-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.back-btn {
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.2s;
+  font-size: 17px;
+}
+
+.back-btn:hover {
+  color: var(--primary-color);
+}
+
+.view-mode-switch {
+  display: flex;
+  background: #F2F3F5;
+  border-radius: 6px;
+  padding: 2px;
+  margin-left: 20px;
+}
+
+.mode-btn {
+  padding: 5px 14px;
+  font-size: 13px;
+  color: var(--text-regular);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mode-btn.active {
+  background: var(--bg-white);
+  color: var(--primary-color);
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stepper-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-body);
+  padding: 3px 6px;
+  border-radius: 20px;
+}
+
+.step-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text-regular);
+  padding: 4px 10px 4px 4px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.step-pill:hover {
+  background: #E5E6EB;
+}
+
+.step-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--border-color);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.step-pill.active {
+  background: var(--bg-white);
+  color: var(--active-step-color);
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+}
+
+.step-pill.active .step-num {
+  background: var(--active-step-color);
+}
+
+.step-pill.done .step-num {
+  background: var(--success-color);
+}

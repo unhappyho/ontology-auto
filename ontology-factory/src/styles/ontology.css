@@ -1,0 +1,210 @@
+/* ========================================================= */
+/* Ontology - 本体树样式                                       */
+/* ========================================================= */
+
+.step2-workspace {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-body);
+}
+
+/* 左侧本体目录树 */
+.ontology-panel {
+  width: 260px;
+  background: var(--bg-white);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.ontology-panel-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.ontology-panel-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ontology-panel-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* 三级目录树样式 */
+/* L1 根目录 */
+.onto-l1 {
+}
+
+.onto-l1-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 8px 10px;
+  cursor: pointer;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.onto-l1-header:hover {
+  background: #F2F3F5;
+}
+
+.onto-l1-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.onto-l1-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onto-l1-count {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: normal;
+  flex-shrink: 0;
+}
+
+.onto-chevron {
+  font-size: 9px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.onto-l1.open > .onto-l1-header .onto-chevron {
+  transform: rotate(90deg);
+}
+
+.onto-l1-children {
+  display: none;
+}
+
+.onto-l1.open > .onto-l1-children {
+  display: block;
+}
+
+/* L2 中间目录 */
+.onto-l2 {
+}
+
+.onto-l2-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px 6px 26px;
+  cursor: pointer;
+  color: var(--text-regular);
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.onto-l2-header:hover {
+  background: #F2F3F5;
+}
+
+.onto-l2-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.onto-l2-children {
+  display: none;
+}
+
+.onto-l2.open > .onto-l2-children {
+  display: block;
+}
+
+/* L3 叶子节点 */
+.onto-l3 {
+}
+
+.onto-l3-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 44px;
+  cursor: pointer;
+  color: var(--text-regular);
+  font-size: 12px;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.onto-l3-header:hover {
+  background: #F2F3F5;
+}
+
+.onto-l3-header.active {
+  background: var(--primary-light);
+  color: var(--primary-color);
+}
+
+.onto-l3-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.onto-l3-label {
+  flex: 1;
+}
+
+.onto-l3-badge {
+  font-size: 10px;
+  display: flex;
+  gap: 4px;
+}
+
+.badge-new {
+  background: #E8FFEA;
+  color: var(--success-color);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.badge-exists {
+  background: #F2F3F5;
+  color: var(--text-secondary);
+  padding: 1px 5px;
+  border-radius: 3px;
+}

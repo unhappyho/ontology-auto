@@ -1,0 +1,146 @@
+/* 全局样式 */
+
+/* 按钮基础样式 */
+.btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background-color: #f2f3f5;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #1D39C4;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.btn-warning {
+  background-color: var(--warning-color);
+  border-color: var(--warning-color);
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: #d46b00;
+}
+
+.btn-success {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+
+.btn-ghost {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: transparent;
+}
+
+.btn-ghost:hover {
+  background: var(--primary-light);
+}
+
+/* 分页样式 */
+.pagination {
+  display: flex;
+  gap: 6px;
+}
+
+.page-item {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--bg-white);
+  font-size: 12px;
+}
+
+.page-item.active {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.page-item:hover:not(.active) {
+  background-color: #f2f3f5;
+}
+
+/* 操作链接 */
+.action-link {
+  color: var(--primary-color);
+  cursor: pointer;
+  margin-left: 16px;
+  font-size: 13px;
+  user-select: none;
+}
+
+.action-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.action-link.danger {
+  color: var(--danger-color);
+}
+
+/* AI 动画 */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dotBounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.ai-dots span {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  background: #722ED1;
+  border-radius: 50%;
+  margin: 0 2px;
+  animation: dotBounce 1.2s infinite;
+}
+
+.ai-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ai-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
