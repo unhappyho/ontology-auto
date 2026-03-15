@@ -1,5 +1,10 @@
 <template>
   <div :class="['entity-card', { expanded, 'reextract-anim': reextractAnimation }]">
+    <!-- 单卡片重识别遮罩 -->
+    <div v-if="isLoading" class="entity-loading-mask">
+      <LoadingOutlined spin style="font-size: 18px; color: #722ed1;" />
+      <span class="entity-loading-text">重新识别中...</span>
+    </div>
     <div class="entity-card-header" @click="toggleExpand">
       <div class="entity-card-left">
         <a-checkbox
@@ -290,6 +295,7 @@ function handleDelete() {
   margin-bottom: 8px;
   overflow: hidden;
   transition: box-shadow 0.2s;
+  position: relative;
 }
 
 .entity-card:hover {
@@ -298,18 +304,39 @@ function handleDelete() {
 
 /* 重新抽取动画效果 */
 .entity-card.reextract-anim {
-  animation: reextractPulse 2s ease-in-out;
+  animation: reextractPulse 0.8s ease-in-out 3;
+  position: relative;
+}
+
+.entity-card.reextract-anim::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(90deg, transparent, #722ed1, transparent);
+  animation: scanLine 0.8s ease-in-out 3;
+  z-index: 1;
+}
+
+@keyframes scanLine {
+  0% { width: 0; left: 0; }
+  50% { width: 60%; left: 20%; }
+  100% { width: 0; left: 100%; }
 }
 
 @keyframes reextractPulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(114, 46, 209, 0.4);
+    box-shadow: 0 0 0 0 rgba(114, 46, 209, 0.5);
     border-color: var(--border-color);
+    background: #fff;
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(114, 46, 209, 0);
+    box-shadow: 0 0 0 16px rgba(114, 46, 209, 0.15);
     border-color: #722ED1;
-    background: #F4EEFF;
+    border-width: 2px;
+    background: #EDD5FF;
   }
 }
 
@@ -589,5 +616,29 @@ function handleDelete() {
   margin-left: 4px;
   font-size: 10px;
   color: var(--text-secondary);
+}
+
+/* ---- 单卡片重识别遮罩 ---- */
+.entity-loading-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(249, 240, 255, 0.88);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 10;
+  animation: mask-fadein 0.2s ease;
+}
+
+@keyframes mask-fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.entity-loading-text {
+  font-size: 12px;
+  color: #595959;
 }
 </style>

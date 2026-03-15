@@ -32,7 +32,7 @@
                 <SaveOutlined />
                 保存
               </a-button>
-              <a-button type="primary" @click="goToStep(3)">
+              <a-button type="primary" :disabled="isTransitioning" @click="goToStep(3)">
                 下一步：关联构建
                 <ArrowRightOutlined />
               </a-button>
@@ -60,7 +60,7 @@
                 <SaveOutlined />
                 保存
               </a-button>
-              <a-button type="primary" @click="goToStep(4)">
+              <a-button type="primary" :disabled="isTransitioning" @click="goToStep(4)">
                 下一步：规则识别
                 <ArrowRightOutlined />
               </a-button>
@@ -85,7 +85,7 @@
                 <SaveOutlined />
                 保存
               </a-button>
-              <a-button type="primary" @click="goToStep(5)">
+              <a-button type="primary" :disabled="isTransitioning" @click="goToStep(5)">
                 下一步：动作识别
                 <ArrowRightOutlined />
               </a-button>
@@ -117,7 +117,15 @@
             </div>
           </div>
         </div>
+
+        <!-- 步骤切换过渡 overlay -->
+        <div v-if="isTransitioning" class="step-transition-overlay">
+          <a-spin size="large" />
+          <div class="transition-text">AI 正在识别分析，准备进入「{{ transitionStepName }}」步骤...</div>
+          <div class="transition-progress-bar"></div>
+        </div>
       </div>
+
     </div>
 
     <!-- AI 副驾面板（右侧，全高并排） -->
@@ -185,11 +193,26 @@ const ruleEditModalRef = ref()
 const currentStep = computed(() => taskStore.currentStepId)
 const viewMode = computed(() => uiStore.viewMode)
 
+const isTransitioning = ref(false)
+const transitionStepName = ref('')
+
+const STEP_NAMES: Record<number, string> = {
+  3: '关联构建',
+  4: '规则识别',
+  5: '动作识别'
+}
+
 function goToStep(stepId: number) {
-  taskStore.switchStep(stepId)
-  // 切换到步骤3/4/5时自动触发副驾AI分析
   if (stepId >= 3 && stepId <= 5) {
-    copilotStore.triggerAIAnalysis(stepId)
+    transitionStepName.value = STEP_NAMES[stepId]
+    isTransitioning.value = true
+    setTimeout(() => {
+      taskStore.switchStep(stepId)
+      copilotStore.triggerAIAnalysis(stepId)
+      isTransitioning.value = false
+    }, 1400)
+  } else {
+    taskStore.switchStep(stepId)
   }
 }
 
@@ -272,6 +295,7 @@ watch(currentStep, (newStep) => {
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 }
 
 .workspace-container {
@@ -378,5 +402,59 @@ watch(currentStep, (newStep) => {
 
 .placeholder-desc {
   font-size: 13px;
+}
+
+/* ---- 步骤切换过渡 overlay ---- */
+.step-transition-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 50;
+  animation: overlay-fadein 0.2s ease;
+}
+
+@keyframes overlay-fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.transition-text {
+  font-size: 13px;
+  color: #595959;
+}
+
+.transition-progress-bar {
+  width: 220px;
+  height: 4px;
+  border-radius: 2px;
+  background: #f0e6ff;
+  overflow: hidden;
+  position: relative;
+}
+
+.transition-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #722ed1, transparent);
+  animation: progress-sweep 1.4s linear infinite;
+}
+
+.step-transition-overlay :deep(.ant-spin-dot-item) {
+  background-color: #722ed1;
+}
+
+@keyframes progress-sweep {
+  0% { left: -30%; }
+  100% { left: 100%; }
 }
 </style>

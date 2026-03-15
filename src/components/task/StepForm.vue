@@ -178,6 +178,13 @@
         </div>
 
         <!-- 采集范围选择 -->
+        <div v-if="isTableLoading" class="ai-scan-banner">
+          <div class="scan-bar"></div>
+          <div class="scan-text">
+            <LoadingOutlined spin />
+            AI 正在智能分析表结构，推荐采集范围...
+          </div>
+        </div>
         <div v-if="(collectItem !== 'script' && collectItem !== 'offline') || scriptConfigured || (collectItem === 'offline' && offlineTaskConfigured && schedulerCompleted)" class="form-section-card">
           <div class="form-section-title">
             <span class="step-badge">2</span>
@@ -271,7 +278,8 @@ import {
   ArrowRightOutlined,
   CloudServerOutlined,
   EditOutlined,
-  RobotOutlined
+  RobotOutlined,
+  LoadingOutlined
 } from '@ant-design/icons-vue'
 import { useTaskStore, useUIStore, useCopilotStore } from '@/stores'
 
@@ -780,5 +788,40 @@ const canProceed = computed(() => {
 
 .page-item:hover:not(.active) {
   background-color: #f2f3f5;
+}
+
+/* ---- AI 扫描 Banner ---- */
+.ai-scan-banner {
+  position: relative;
+  overflow: hidden;
+  background: #f9f0ff;
+  border-left: 4px solid #722ed1;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.scan-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 4px;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, #722ed1, transparent);
+  animation: scan-sweep 1.2s linear infinite;
+}
+
+@keyframes scan-sweep {
+  0% { left: -30%; }
+  100% { left: 110%; }
+}
+
+.scan-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #722ed1;
+  font-weight: 500;
 }
 </style>
