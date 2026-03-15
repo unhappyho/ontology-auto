@@ -35,13 +35,26 @@
         :key="msg.id"
         :class="['message-item', msg.role]"
       >
-        <!-- type=thinking：三点跳动 -->
+        <!-- type=thinking：三点跳动 + 深度思考步骤 -->
         <template v-if="msg.type === 'thinking'">
           <div class="msg-avatar"><RobotOutlined /></div>
-          <div class="msg-bubble thinking">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
+          <div class="thinking-wrapper">
+            <div class="msg-bubble thinking">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="thinking-label">深度思考中</span>
+            </div>
+            <div v-if="msg.thinkingSteps?.length" class="thinking-steps">
+              <div
+                v-for="(step, i) in msg.thinkingSteps"
+                :key="i"
+                class="thinking-step"
+                :style="{ animationDelay: `${i * 0.35}s` }"
+              >
+                <span class="step-dot"></span>{{ step }}
+              </div>
+            </div>
           </div>
         </template>
 
@@ -106,6 +119,7 @@ import {
 import { useCopilotStore } from '@/stores'
 import CopilotCard from './CopilotCard.vue'
 import type { SuggestionCard } from '@/stores/useCopilotStore'
+import { GENERIC_THINKING_STEPS } from '@/stores/useCopilotStore'
 
 const STEP_NAMES: Record<number, string> = {
   1: '数据采集',
@@ -156,7 +170,7 @@ function handleSend() {
   isUserThinking.value = true
 
   // 模拟 AI 回复
-  const thinkingId = copilotStore.addThinkingMessage()
+  const thinkingId = copilotStore.addThinkingMessage(GENERIC_THINKING_STEPS)
   setTimeout(() => {
     isUserThinking.value = false
     copilotStore.resolveThinkingToCards(
@@ -398,6 +412,58 @@ function handleClose() {
   30% {
     transform: translateY(-5px);
   }
+}
+
+/* 深度思考包裹器 */
+.thinking-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: calc(100% - 44px);
+}
+
+.thinking-label {
+  font-size: 11px;
+  color: #9b59b6;
+  margin-left: 6px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+/* 深度思考步骤列表 */
+.thinking-steps {
+  background: #f9f0ff;
+  border: 1px solid #d3adf7;
+  border-left: 3px solid #722ed1;
+  border-radius: 0 8px 8px 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.thinking-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #531dab;
+  font-style: italic;
+  opacity: 0;
+  animation: step-appear 0.4s ease forwards;
+}
+
+.step-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #722ed1;
+  flex-shrink: 0;
+}
+
+@keyframes step-appear {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* card-group 布局 */
