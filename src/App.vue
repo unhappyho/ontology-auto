@@ -8,9 +8,8 @@
       <router-view />
     </div>
 
-    <!-- AI 副驾 (暂时隐藏)
-    <AICopilotPanel />
-    -->
+    <!-- AI 副驾悬浮球 -->
+    <FloatingBall />
   </div>
 </template>
 
@@ -18,7 +17,7 @@
 import { watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
-// import AICopilotPanel from '@/components/copilot/AICopilotPanel.vue'
+import FloatingBall from '@/components/copilot/FloatingBall.vue'
 import { useTaskStore, useCopilotStore } from '@/stores'
 
 const route = useRoute()

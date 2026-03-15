@@ -1,263 +1,259 @@
 <template>
-  <Teleport to="body">
-    <Transition name="slide">
-      <div v-if="visible" class="copilot-panel">
-        <div class="copilot-header">
-          <div class="copilot-title">
+  <div class="copilot-panel" :class="{ 'is-fullscreen': isFullscreen }">
+    <div class="copilot-header">
+      <div class="copilot-title">
+        <RobotOutlined />
+        <span>AI 助手</span>
+        <a-tag v-if="copilotStore.currentStepId > 0" color="purple" size="small">
+          步骤{{ copilotStore.currentStepId }}
+        </a-tag>
+      </div>
+      <div class="copilot-actions">
+        <a-button type="text" size="small" @click="toggleFullscreen" :title="isFullscreen ? '还原' : '全屏'">
+          <FullscreenOutlined v-if="!isFullscreen" />
+          <FullscreenExitOutlined v-else />
+        </a-button>
+        <a-button type="text" size="small" @click="handleClose">
+          <CloseOutlined />
+        </a-button>
+      </div>
+    </div>
+
+    <div class="copilot-body" ref="bodyRef">
+      <!-- 欢迎消息 -->
+      <div v-if="messages.length === 0" class="welcome-section">
+        <div class="welcome-header">
+          <div class="ai-avatar-large">
             <RobotOutlined />
-            <span>AI 助手</span>
-            <a-tag v-if="copilotStore.currentStepId > 0" color="purple" size="small">
-              步骤{{ copilotStore.currentStepId }}
-            </a-tag>
           </div>
-          <div class="copilot-actions">
-            <a-button type="text" size="small" @click="handleMinimize">
-              <MinusOutlined />
-            </a-button>
-            <a-button type="text" size="small" @click="handleClose">
-              <CloseOutlined />
-            </a-button>
+          <div class="welcome-text">
+            <h3>你好！我是本体构建助手</h3>
+            <p>我可以帮助你完成以下任务</p>
           </div>
         </div>
 
-        <div class="copilot-body" ref="bodyRef">
-          <!-- 欢迎消息 -->
-          <div v-if="messages.length === 0" class="welcome-message">
-            <div class="ai-avatar">
-              <RobotOutlined />
+        <div class="feature-cards">
+          <div class="feature-card" @click="handleQuickAction('create')">
+            <div class="card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+              <PlusOutlined />
             </div>
-            <div class="ai-content">
-              <div class="ai-greeting">你好！我是本体构建助手</div>
-              <div class="ai-desc">我可以帮助你：</div>
-              <ul class="ai-features">
-                <li>快速创建本体项目</li>
-                <li>智能识别实体和属性</li>
-                <li>自动推断关联关系</li>
-                <li>优化本体结构</li>
-              </ul>
-              <div class="quick-actions">
-                <a-button type="primary" size="small" @click="handleQuickAction('create')">
-                  <PlusOutlined />
-                  创建新本体
-                </a-button>
-                <a-button size="small" @click="handleQuickAction('help')">
-                  <QuestionCircleOutlined />
-                  获取帮助
-                </a-button>
-              </div>
+            <div class="card-content">
+              <div class="card-title">创建本体</div>
+              <div class="card-desc">快速创建新的本体项目</div>
             </div>
           </div>
 
-          <!-- 消息列表 -->
-          <div v-else class="message-list">
-            <div
-              v-for="(msg, index) in messages"
-              :key="index"
-              :class="['message-item', msg.role]"
-            >
-              <div class="message-avatar">
-                <RobotOutlined v-if="msg.role === 'assistant'" />
-                <UserOutlined v-else />
-              </div>
-              <div class="message-content">
-                {{ msg.content }}
-              </div>
+          <div class="feature-card" @click="handleQuickAction('extract')">
+            <div class="card-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+              <AppstoreOutlined />
+            </div>
+            <div class="card-content">
+              <div class="card-title">智能提取</div>
+              <div class="card-desc">AI 自动识别实体和属性</div>
             </div>
           </div>
 
-          <!-- 建议卡片区域 -->
-          <div v-if="copilotStore.suggestions.length > 0" class="suggestions-section">
-            <div class="suggestions-header">
-              <BulbOutlined />
-              <span>智能建议</span>
-              <a-button
-                v-if="!allAccepted"
-                type="link"
-                size="small"
-                @click="handleAcceptAll"
-              >
-                采纳全部
-              </a-button>
+          <div class="feature-card" @click="handleQuickAction('relation')">
+            <div class="card-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+              <ApartmentOutlined />
             </div>
-            <div class="suggestions-list">
-              <div
-                v-for="suggestion in copilotStore.suggestions"
-                :key="suggestion.id"
-                :class="['suggestion-card', { accepted: suggestion.accepted }]"
-              >
-                <div class="suggestion-card-header">
-                  <div class="suggestion-title">
-                    <FileTextOutlined v-if="suggestion.type === 'table'" />
-                    <AppstoreOutlined v-else-if="suggestion.type === 'entity'" />
-                    <ApartmentOutlined v-else-if="suggestion.type === 'relation'" />
-                    <DatabaseOutlined v-else />
-                    <span>{{ suggestion.title }}</span>
-                  </div>
-                  <a-tag v-if="suggestion.accepted" color="green" size="small">已采纳</a-tag>
-                </div>
-                <div class="suggestion-desc">{{ suggestion.description }}</div>
-                <div class="suggestion-content">{{ suggestion.content }}</div>
+            <div class="card-content">
+              <div class="card-title">关联推断</div>
+              <div class="card-desc">智能推断实体间关联关系</div>
+            </div>
+          </div>
 
-                <!-- 统计信息 -->
-                <div v-if="suggestion.stats" class="suggestion-stats">
-                  <div
-                    v-for="(value, key) in suggestion.stats"
-                    :key="key"
-                    class="stat-item"
-                  >
-                    <span class="stat-label">{{ key }}</span>
-                    <span class="stat-value">{{ value }}</span>
-                  </div>
-                </div>
-
-                <div v-if="!suggestion.accepted" class="suggestion-actions">
-                  <a-button
-                    type="primary"
-                    size="small"
-                    @click="handleAcceptSuggestion(suggestion.id)"
-                  >
-                    {{ suggestion.actionLabel || '采纳' }}
-                  </a-button>
-                  <a-button size="small" @click="handleDismissSuggestion(suggestion.id)">
-                    忽略
-                  </a-button>
-                </div>
-              </div>
+          <div class="feature-card" @click="handleQuickAction('help')">
+            <div class="card-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+              <QuestionCircleOutlined />
+            </div>
+            <div class="card-content">
+              <div class="card-title">获取帮助</div>
+              <div class="card-desc">解答使用过程中的疑问</div>
             </div>
           </div>
         </div>
 
-        <div class="copilot-input">
-          <a-input
-            v-model:value="inputValue"
-            placeholder="输入你想做的事情..."
-            @pressEnter="handleSend"
+        <div class="quick-input">
+          <a-input-search
+            v-model:value="quickInput"
+            placeholder="问我一些问题..."
+            enter-button="发送"
+            size="large"
+            @search="handleQuickSearch"
+          />
+        </div>
+      </div>
+
+      <!-- 消息列表 -->
+      <div v-else class="message-list">
+        <div
+          v-for="(msg, index) in messages"
+          :key="index"
+          :class="['message-item', msg.role]"
+        >
+          <div class="message-avatar">
+            <RobotOutlined v-if="msg.role === 'assistant'" />
+            <UserOutlined v-else />
+          </div>
+          <div class="message-content">
+            {{ msg.content }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 建议卡片区域 -->
+      <div v-if="copilotStore.suggestions.length > 0" class="suggestions-section">
+        <div class="suggestions-header">
+          <BulbOutlined />
+          <span>智能建议</span>
+          <a-button
+            v-if="!allAccepted"
+            type="link"
+            size="small"
+            @click="handleAcceptAll"
           >
-            <template #suffix>
-              <a-button type="text" size="small" @click="handleSend">
-                <SendOutlined />
-              </a-button>
-            </template>
-          </a-input>
+            采纳全部
+          </a-button>
         </div>
-      </div>
-    </Transition>
+        <div class="suggestions-list">
+          <div
+            v-for="suggestion in copilotStore.suggestions"
+            :key="suggestion.id"
+            :class="['suggestion-card', { accepted: suggestion.accepted }]"
+          >
+            <div class="suggestion-card-header">
+              <div class="suggestion-title">
+                <FileTextOutlined v-if="suggestion.type === 'table'" />
+                <AppstoreOutlined v-else-if="suggestion.type === 'entity'" />
+                <ApartmentOutlined v-else-if="suggestion.type === 'relation'" />
+                <DatabaseOutlined v-else />
+                <span>{{ suggestion.title }}</span>
+              </div>
+              <a-tag v-if="suggestion.accepted" color="green" size="small">已采纳</a-tag>
+            </div>
+            <div class="suggestion-desc">{{ suggestion.description }}</div>
+            <div class="suggestion-content">{{ suggestion.content }}</div>
 
-    <!-- 悬浮按钮 -->
-    <Transition name="fade">
-      <div v-if="!visible && showFloatBtn" class="copilot-float-btn" @click="handleOpen">
-        <div class="float-btn-icon">
-          <RobotOutlined />
+            <!-- 统计信息 -->
+            <div v-if="suggestion.stats" class="suggestion-stats">
+              <div
+                v-for="(value, key) in suggestion.stats"
+                :key="key"
+                class="stat-item"
+              >
+                <span class="stat-label">{{ key }}</span>
+                <span class="stat-value">{{ value }}</span>
+              </div>
+            </div>
+
+            <div class="suggestion-actions">
+              <a-button
+                v-if="suggestion.actionLabel && !suggestion.accepted"
+                type="primary"
+                size="small"
+                @click="handleAcceptSuggestion(suggestion.id)"
+              >
+                {{ suggestion.actionLabel }}
+              </a-button>
+            </div>
+          </div>
         </div>
-        <div v-if="copilotStore.hasNewSuggestions" class="float-btn-badge"></div>
-        <div class="float-btn-text">AI 助手</div>
       </div>
-    </Transition>
-  </Teleport>
+    </div>
+
+    <!-- 输入框 -->
+    <div class="copilot-input">
+      <a-input
+        v-model:value="inputMessage"
+        placeholder="输入消息..."
+        @pressEnter="handleSend"
+      >
+        <template #suffix>
+          <a-button type="text" @click="handleSend">
+            <SendOutlined />
+          </a-button>
+        </template>
+      </a-input>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import {
   RobotOutlined,
-  CloseOutlined,
-  MinusOutlined,
-  PlusOutlined,
-  QuestionCircleOutlined,
   UserOutlined,
   SendOutlined,
   BulbOutlined,
   FileTextOutlined,
   AppstoreOutlined,
   ApartmentOutlined,
-  DatabaseOutlined
+  DatabaseOutlined,
+  CloseOutlined,
+  PlusOutlined,
+  QuestionCircleOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined
 } from '@ant-design/icons-vue'
-import { useRouter } from 'vue-router'
 import { useCopilotStore } from '@/stores'
 
-const router = useRouter()
 const copilotStore = useCopilotStore()
-
-const showFloatBtn = ref(true)
-const inputValue = ref('')
 const bodyRef = ref<HTMLElement>()
+const inputMessage = ref('')
+const quickInput = ref('')
+const isFullscreen = ref(false)
 
-// 使用 store 的状态
-const visible = computed(() => copilotStore.visible)
 const messages = computed(() => copilotStore.messages)
 
-// 检查是否全部采纳
 const allAccepted = computed(() => {
-  return copilotStore.suggestions.length > 0 &&
-    copilotStore.suggestions.every(s => s.accepted)
+  return copilotStore.suggestions.every(s => s.accepted)
 })
 
-// 监听步骤变化
-watch(
-  () => copilotStore.currentStepId,
-  (newStep) => {
-    if (newStep > 0) {
-      copilotStore.openPanel()
-    }
+// 监听消息变化，自动滚动到底部
+watch(messages, async () => {
+  await nextTick()
+  if (bodyRef.value) {
+    bodyRef.value.scrollTop = bodyRef.value.scrollHeight
   }
-)
-
-function handleOpen() {
-  copilotStore.openPanel()
-}
-
-function handleClose() {
-  copilotStore.closePanel()
-  showFloatBtn.value = true
-}
-
-function handleMinimize() {
-  copilotStore.minimizePanel()
-  showFloatBtn.value = true
-}
+}, { deep: true })
 
 function handleSend() {
-  if (!inputValue.value.trim()) return
+  if (!inputMessage.value.trim()) return
 
-  copilotStore.addMessage('user', inputValue.value)
+  copilotStore.addMessage('user', inputMessage.value)
+  inputMessage.value = ''
 
-  const userInput = inputValue.value
-  inputValue.value = ''
-
-  // 模拟AI回复
+  // 模拟 AI 回复
   setTimeout(() => {
-    let reply = ''
-    if (userInput.includes('创建') || userInput.includes('新')) {
-      reply = '好的，我来帮你创建新的本体项目。请告诉我你想构建什么领域的本体？比如：电商CRM、供应链管理、医疗档案等。'
-    } else if (userInput.includes('帮助') || userInput.includes('怎么')) {
-      reply = '我可以帮你完成以下任务：\n1. 创建新的本体项目\n2. 识别数据表中的实体和属性\n3. 构建实体间的关联关系\n4. 优化本体结构\n\n请告诉我你需要什么帮助？'
-    } else if (userInput.includes('步骤') || userInput.includes('进行')) {
-      const currentStep = copilotStore.currentStepId
-      if (currentStep > 0) {
-        const stepNames = ['', '数据源配置', '实体识别', '关联构建', '知识入库']
-        reply = `当前正在第${currentStep}步：${stepNames[currentStep]}。我可以帮你提供该步骤的智能建议。`
-      } else {
-        reply = '请先进入任务配置流程，我会在各个步骤为你提供智能建议。'
-      }
-    } else {
-      reply = '明白了！让我来分析一下。你可以先创建一个本体项目，然后：\n1. 配置数据源\n2. 让AI自动识别实体\n3. 构建关联关系\n4. 融合入库\n\n需要我帮你创建项目吗？'
-    }
+    copilotStore.addMessage('assistant', '收到你的消息了！请告诉我你需要什么帮助。')
+  }, 1000)
+}
 
-    copilotStore.addMessage('assistant', reply)
+function handleQuickSearch() {
+  if (!quickInput.value.trim()) return
+  copilotStore.addMessage('user', quickInput.value)
+  quickInput.value = ''
 
-    setTimeout(() => {
-      if (bodyRef.value) {
-        bodyRef.value.scrollTop = bodyRef.value.scrollHeight
-      }
-    }, 50)
-  }, 500)
+  setTimeout(() => {
+    copilotStore.addMessage('assistant', '收到你的问题了！让我来分析一下...')
+  }, 1000)
 }
 
 function handleQuickAction(action: string) {
-  if (action === 'create') {
-    router.push('/task')
-  } else if (action === 'help') {
-    copilotStore.addMessage('assistant', '有什么可以帮助你的？请告诉我你遇到的问题或想完成的任务。')
+  switch (action) {
+    case 'create':
+      copilotStore.addMessage('assistant', '好的，让我们开始创建新的本体项目。请告诉我你想构建什么类型的本体？')
+      break
+    case 'extract':
+      copilotStore.addMessage('assistant', '好的，我将帮你智能提取实体和属性。请先选择需要分析的数据源。')
+      break
+    case 'relation':
+      copilotStore.addMessage('assistant', '让我帮你分析实体间的关联关系。首先需要确认已经完成实体识别。')
+      break
+    case 'help':
+      copilotStore.addMessage('assistant', '你好！我是本体构建助手，可以帮助你：\n\n1. 快速创建本体项目\n2. 智能识别实体和属性\n3. 自动推断关联关系\n4. 优化本体结构\n\n请问有什么可以帮助你的？')
+      break
   }
 }
 
@@ -269,33 +265,43 @@ function handleAcceptAll() {
   copilotStore.acceptAllSuggestions()
 }
 
-function handleDismissSuggestion(id: string) {
-  copilotStore.dismissSuggestion(id)
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+}
+
+function handleClose() {
+  copilotStore.closePanel()
 }
 </script>
 
 <style scoped>
 .copilot-panel {
+  width: 380px;
+  height: 100%;
+  background: #fff;
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.copilot-panel.is-fullscreen {
   position: fixed;
   right: 0;
   top: 0;
-  width: 360px;
   height: 100vh;
-  background: var(--bg-white);
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
   z-index: 1000;
-  display: flex;
-  flex-direction: column;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
 }
 
 .copilot-header {
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
   flex-shrink: 0;
 }
 
@@ -303,7 +309,13 @@ function handleDismissSuggestion(id: string) {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: #fff;
   font-weight: 500;
+  font-size: 15px;
+}
+
+.copilot-title :deep(.anticon) {
+  font-size: 18px;
 }
 
 .copilot-actions {
@@ -312,142 +324,214 @@ function handleDismissSuggestion(id: string) {
 }
 
 .copilot-actions :deep(.ant-btn) {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .copilot-actions :deep(.ant-btn:hover) {
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .copilot-body {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+}
+
+.copilot-input {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.copilot-input :deep(.ant-input) {
+  border-radius: 20px;
+  padding: 8px 12px;
+}
+
+.copilot-input :deep(.ant-input-suffix) {
+  margin-left: 8px;
+}
+
+/* 欢迎区域 */
+.welcome-section {
+  padding: 20px 0;
+}
+
+.welcome-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ai-avatar-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.welcome-text h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.welcome-text p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* 功能卡片 */
+.feature-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.feature-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: #fafafa;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.feature-card:hover {
+  background: #fff;
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+  transform: translateY(-2px);
+}
+
+.card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.card-content {
+  min-width: 0;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.card-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 快捷输入 */
+.quick-input {
+  margin-top: 16px;
+}
+
+.quick-input :deep(.ant-input-search-button) {
+  border-radius: 20px;
+}
+
+/* 消息列表 */
+.message-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.welcome-message {
-  display: flex;
-  gap: 12px;
-}
-
-.ai-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.ai-content {
-  flex: 1;
-}
-
-.ai-greeting {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: var(--text-main);
-}
-
-.ai-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.ai-features {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 12px;
-  color: var(--text-regular);
-  margin-bottom: 12px;
-}
-
-.ai-features li {
-  margin-bottom: 4px;
-}
-
-.quick-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.message-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 .message-item {
   display: flex;
   gap: 10px;
+  max-width: 90%;
 }
 
 .message-item.user {
   flex-direction: row-reverse;
+  align-self: flex-end;
 }
 
 .message-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #F0F0F0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  color: var(--text-secondary);
   flex-shrink: 0;
+  font-size: 14px;
 }
 
 .message-item.assistant .message-avatar {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  color: #fff;
 }
 
 .message-item.user .message-avatar {
-  background: var(--primary-color);
-  color: white;
+  background: #e6f7ff;
+  color: #1890ff;
 }
 
 .message-content {
-  max-width: 240px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-radius: 12px;
   font-size: 13px;
-  line-height: 1.5;
-  background: #F5F5F5;
+  line-height: 1.6;
   white-space: pre-wrap;
 }
 
-.message-item.user .message-content {
-  background: var(--primary-color);
-  color: white;
+.message-item.assistant .message-content {
+  background: #f5f5f5;
+  color: var(--text-main);
+  border-bottom-left-radius: 4px;
 }
 
-/* 建议卡片样式 */
+.message-item.user .message-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+/* 建议卡片 */
 .suggestions-section {
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1px solid var(--border-color);
-  padding-top: 12px;
 }
 
 .suggestions-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  margin-bottom: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-main);
-  margin-bottom: 12px;
 }
 
 .suggestions-header :deep(.anticon) {
@@ -457,15 +541,15 @@ function handleDismissSuggestion(id: string) {
 .suggestions-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .suggestion-card {
+  padding: 14px;
   background: #fafafa;
+  border-radius: 10px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 12px;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
 .suggestion-card.accepted {
@@ -490,23 +574,23 @@ function handleDismissSuggestion(id: string) {
 }
 
 .suggestion-title :deep(.anticon) {
-  color: var(--primary-color);
+  color: #667eea;
 }
 
 .suggestion-desc {
   font-size: 12px;
   color: var(--text-secondary);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .suggestion-content {
   font-size: 12px;
-  color: var(--text-regular);
-  background: white;
-  padding: 8px;
-  border-radius: 4px;
+  color: var(--text-main);
+  background: #fff;
+  padding: 10px;
+  border-radius: 6px;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .suggestion-stats {
@@ -520,98 +604,26 @@ function handleDismissSuggestion(id: string) {
 
 .stat-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  background: white;
-  padding: 6px 10px;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  background: #fff;
   border-radius: 4px;
-  min-width: 60px;
 }
 
 .stat-label {
-  font-size: 10px;
   color: var(--text-secondary);
 }
 
 .stat-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--primary-color);
+  font-weight: 500;
+  color: var(--text-main);
 }
 
 .suggestion-actions {
+  margin-top: 12px;
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.copilot-input {
-  padding: 12px 16px;
-  border-top: 1px solid var(--border-color);
-  flex-shrink: 0;
-}
-
-.copilot-float-btn {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 24px;
-  color: white;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  transition: all 0.3s;
-  z-index: 999;
-}
-
-.copilot-float-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
-}
-
-.float-btn-icon {
-  font-size: 20px;
-  position: relative;
-}
-
-.float-btn-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 10px;
-  height: 10px;
-  background: #ff4d4f;
-  border-radius: 50%;
-  border: 2px solid white;
-}
-
-.float-btn-text {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* Transition */
-.slide-enter-active,
-.slide-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-  transform: translateX(100%);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+  justify-content: flex-end;
 }
 </style>

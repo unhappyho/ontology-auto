@@ -2,34 +2,38 @@
   <div class="relation-panel">
     <!-- 分类切换 + 视图切换 -->
     <div class="relation-header">
-      <div class="category-tabs">
-        <div
-          :class="['tab-item', { active: category === 'entity' }]"
-          @click="handleCategoryChange('entity')"
-        >
-          实体类型关系
-        </div>
-        <div
-          :class="['tab-item', { active: category === 'event' }]"
-          @click="handleCategoryChange('event')"
-        >
-          事件类型关系
+      <div class="header-left">
+        <div class="category-tabs">
+          <div
+            :class="['tab-item', { active: category === 'entity' }]"
+            @click="handleCategoryChange('entity')"
+          >
+            实体类型关系
+          </div>
+          <div
+            :class="['tab-item', { active: category === 'event' }]"
+            @click="handleCategoryChange('event')"
+          >
+            事件类型关系
+          </div>
         </div>
       </div>
-      <div class="view-tabs">
-        <div
-          :class="['tab-item', { active: viewMode === 'canvas' }]"
-          @click="handleViewModeChange('canvas')"
-        >
-          <AppstoreOutlined />
-          画布视图
-        </div>
-        <div
-          :class="['tab-item', { active: viewMode === 'table' }]"
-          @click="handleViewModeChange('table')"
-        >
-          <UnorderedListOutlined />
-          列表视图
+      <div class="header-right">
+        <div class="view-tabs">
+          <div
+            :class="['tab-item', { active: viewMode === 'canvas' }]"
+            @click="handleViewModeChange('canvas')"
+          >
+            <AppstoreOutlined />
+            画布视图
+          </div>
+          <div
+            :class="['tab-item', { active: viewMode === 'table' }]"
+            @click="handleViewModeChange('table')"
+          >
+            <UnorderedListOutlined />
+            列表视图
+          </div>
         </div>
       </div>
     </div>
@@ -104,6 +108,17 @@ function handleViewModeChange(mode: 'canvas' | 'table') {
   flex-shrink: 0;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .category-tabs {
   display: flex;
   gap: 4px;
@@ -111,6 +126,7 @@ function handleViewModeChange(mode: 'canvas' | 'table') {
 
 .view-tabs {
   display: flex;
+  align-items: center;
   gap: 4px;
 }
 

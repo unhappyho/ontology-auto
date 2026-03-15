@@ -3,8 +3,16 @@
     <div class="step-page-body">
       <div class="form-page-container">
         <div class="form-header">
-          <div class="form-page-title">本体数据采集</div>
-          <div class="form-page-desc">配置数据来源、采集方式及采集范围</div>
+          <div class="form-header-left">
+            <div class="form-page-title">本体数据采集</div>
+            <div class="form-page-desc">配置数据来源、采集方式及采集范围</div>
+          </div>
+          <div class="form-header-right">
+            <a-button type="primary" ghost @click="handleAIRecommend">
+              <RobotOutlined />
+              AI 智能推荐
+            </a-button>
+          </div>
         </div>
 
         <!-- 基础规则配置 -->
@@ -48,16 +56,6 @@
                 <a-select-option value="script">自定义脚本</a-select-option>
                 <a-select-option value="offline">离线开发</a-select-option>
               </a-select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-label">采集方式</div>
-            <div class="form-control">
-              <a-radio-group v-model:value="collectMode">
-                <a-radio value="full">全量</a-radio>
-                <a-radio value="incremental">增量</a-radio>
-              </a-radio-group>
             </div>
           </div>
 
@@ -271,13 +269,15 @@ import {
   SaveOutlined,
   ArrowRightOutlined,
   CloudServerOutlined,
-  EditOutlined
+  EditOutlined,
+  RobotOutlined
 } from '@ant-design/icons-vue'
-import { useTaskStore, useUIStore } from '@/stores'
+import { useTaskStore, useUIStore, useCopilotStore } from '@/stores'
 
 const router = useRouter()
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
+const copilotStore = useCopilotStore()
 
 const dataType = computed({
   get: () => taskStore.dataType,
@@ -287,11 +287,6 @@ const dataType = computed({
 const collectItem = computed({
   get: () => taskStore.collectItem,
   set: (v) => taskStore.updateCollectItem(v)
-})
-
-const collectMode = computed({
-  get: () => taskStore.collectMode,
-  set: () => {}
 })
 
 const dataSource = computed({
@@ -374,6 +369,32 @@ function handleBack() {
   router.push('/')
 }
 
+// AI 智能推荐
+function handleAIRecommend() {
+  // 打开 AI 助手面板
+  copilotStore.openPanel()
+  // 设置当前步骤上下文
+  copilotStore.setStepContext(1)
+  // 添加推荐消息
+  copilotStore.addMessage('assistant', '正在分析数据源特征，请稍候...')
+
+  // 模拟 AI 分析过程
+  setTimeout(() => {
+    copilotStore.addMessage('assistant', '基于您的数据源，我推荐以下配置方案：\n\n1. 数据格式：结构化数据\n2. 采集项：建议选择"逻辑模型"，可获取完整的表结构信息\n3. 推荐数据源：CRM 核心业务库 (MySQL)，该库包含完整的用户、订单、产品数据\n\n是否采纳此推荐方案？')
+    // 显示建议卡片
+    copilotStore.suggestions = [
+      {
+        id: 'step1-ai-1',
+        type: 'table',
+        title: '推荐表结构',
+        description: '基于CRM业务场景，推荐以下核心表结构',
+        content: 't_user_main (用户主表)\nt_order_flow (订单流水)\nt_product_catalog (产品目录)\nt_contract_info (合同信息)\nt_complaint_record (投诉记录)',
+        actionLabel: '采纳建议'
+      }
+    ]
+  }, 1500)
+}
+
 function handleNext() {
   // 如果选择了离线开发，需要等待调度任务完成才能进入下一步
   if (collectItem.value === 'offline' && !schedulerCompleted.value) {
@@ -441,6 +462,17 @@ const canProceed = computed(() => {
 
 .form-header {
   margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.form-header-left {
+  flex: 1;
+}
+
+.form-header-right {
+  flex-shrink: 0;
 }
 
 .form-page-title {

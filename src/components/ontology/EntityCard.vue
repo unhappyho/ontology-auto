@@ -2,6 +2,11 @@
   <div :class="['entity-card', { expanded, 'reextract-anim': reextractAnimation }]">
     <div class="entity-card-header" @click="toggleExpand">
       <div class="entity-card-left">
+        <a-checkbox
+          :checked="isSelected"
+          @change="handleSelect"
+          @click.stop
+        />
         <div class="entity-type-dot" :style="{ background: color }"></div>
         <span class="entity-name">{{ entity.name }}</span>
         <span class="entity-name-cn">{{ entity.nameCn }}</span>
@@ -21,14 +26,20 @@
             <SwapOutlined />
           </div>
           <div class="entity-op-btn" title="调整库表" @click="handleEditTable">
-            <DatabaseOutlined />
+            <LoadingOutlined v-if="isLoading" spin />
+            <DatabaseOutlined v-else />
           </div>
-          <div class="entity-op-btn" title="编辑" @click="handleEdit">
-            <EditOutlined />
-          </div>
-          <div class="entity-op-btn del" title="移除" @click="handleDelete">
-            <DeleteOutlined />
-          </div>
+          <Popconfirm
+            title="确认删除"
+            :description="`确定要删除实体「${entity.nameCn || entity.name}」吗？`"
+            ok-text="确定"
+            cancel-text="取消"
+            @confirm="handleDelete"
+          >
+            <div class="entity-op-btn del" title="移除">
+              <DeleteOutlined />
+            </div>
+          </Popconfirm>
         </div>
         <DownOutlined class="entity-expand-icon" />
       </div>
@@ -41,18 +52,39 @@
           <TableOutlined />
           {{ entity.tableName }}
         </span>
+        <div class="attr-actions" v-if="entity.attrs.length > 0">
+          <a-checkbox v-model:checked="selectAllAttrs" @change="handleSelectAllAttrs">全选</a-checkbox>
+          <a-button
+            v-if="selectedAttrs.length > 0"
+            type="text"
+            danger
+            size="small"
+            @click="handleBatchDeleteAttrs"
+          >
+            <DeleteOutlined />
+            删除选中 ({{ selectedAttrs.length }})
+          </a-button>
+        </div>
       </div>
       <div class="attr-table-wrapper">
         <table class="attr-table">
           <thead>
             <tr>
+              <th class="col-checkbox"></th>
               <th class="col-term">术语</th>
               <th class="col-attr">属性</th>
               <th class="col-field">物理字段</th>
+              <th class="col-action">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="attr in entity.attrs" :key="attr.en" class="attr-row">
+              <td class="col-checkbox">
+                <a-checkbox
+                  :checked="selectedAttrs.includes(attr.en)"
+                  @change="(e: any) => handleSelectAttr(attr.en, e.target.checked)"
+                />
+              </td>
               <td class="col-term">
                 <div class="attr-term" @click="handleEditTerm(attr)" title="点击调整术语关联">
                   <LinkOutlined />
@@ -73,6 +105,17 @@
                   <SettingOutlined class="edit-icon" />
                 </div>
               </td>
+              <td class="col-action">
+                <a-button
+                  type="text"
+                  danger
+                  size="small"
+                  class="attr-delete-btn"
+                  @click="handleDeleteAttr(attr.en)"
+                >
+                  <DeleteOutlined />
+                </a-button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -87,15 +130,16 @@ import {
   StarFilled,
   CheckCircleOutlined,
   SwapOutlined,
-  EditOutlined,
   DeleteOutlined,
   DownOutlined,
   TagOutlined,
   LinkOutlined,
   DatabaseOutlined,
   TableOutlined,
-  SettingOutlined
+  SettingOutlined,
+  LoadingOutlined
 } from '@ant-design/icons-vue'
+import { Popconfirm, message } from 'ant-design-vue'
 import type { Entity, EntityAttr } from '@/types'
 import { useUIStore, useOntologyStore } from '@/stores'
 
@@ -104,19 +148,47 @@ interface Props {
   color: string
   domainLabel: string
   reextractAnimation?: boolean // 是否显示重新抽取动画
+  defaultExpanded?: boolean // 是否默认展开
+  isSelected?: boolean // 是否被选中
 }
 
 const props = defineProps<Props>()
+const emit = defineEmits<{
+  (e: 'update:isSelected', value: boolean): void
+  (e: 'select', entityId: string, value: boolean): void
+}>()
 
 const uiStore = useUIStore()
 const ontologyStore = useOntologyStore()
 
-const expanded = ref(false)
+const expanded = ref(props.defaultExpanded ?? false)
+
+// 属性选择状态
+const selectedAttrs = ref<string[]>([])
+const selectAllAttrs = computed({
+  get: () => selectedAttrs.value.length === props.entity.attrs.length && props.entity.attrs.length > 0,
+  set: (val: boolean) => {
+    if (val) {
+      selectedAttrs.value = props.entity.attrs.map(a => a.en)
+    } else {
+      selectedAttrs.value = []
+    }
+  }
+})
+
+// 当前实体是否正在刷新（通过计算属性监听 store 状态）
+const isLoading = computed(() => ontologyStore.reextractingEntityId === props.entity.id)
 
 const mappingData = computed(() => ontologyStore.currentMapping)
 
 function toggleExpand() {
   expanded.value = !expanded.value
+}
+
+function handleSelect(e: any) {
+  const checked = e.target.checked
+  emit('update:isSelected', checked)
+  emit('select', props.entity.id, checked)
 }
 
 function handleMoveDomain() {
@@ -130,6 +202,7 @@ function handleMoveDomain() {
 
 function handleEditTable() {
   // 打开库表编辑弹窗
+  // loading 动效会在弹窗确认后由 store 触发
   uiStore.openEntityTableModal({
     entityId: props.entity.id,
     entityName: props.entity.name
@@ -169,12 +242,43 @@ function getMappedField(attrName: string): string | null {
   return (props.entity.attrs.find(a => a.en === attrName) as any)?.mappedField || null
 }
 
-function handleEdit() {
-  // 编辑逻辑
+function handleSelectAttr(attrEn: string, checked: boolean) {
+  if (checked) {
+    if (!selectedAttrs.value.includes(attrEn)) {
+      selectedAttrs.value.push(attrEn)
+    }
+  } else {
+    const index = selectedAttrs.value.indexOf(attrEn)
+    if (index > -1) {
+      selectedAttrs.value.splice(index, 1)
+    }
+  }
+}
+
+function handleSelectAllAttrs(e: any) {
+  const checked = e.target.checked
+  if (checked) {
+    selectedAttrs.value = props.entity.attrs.map(a => a.en)
+  } else {
+    selectedAttrs.value = []
+  }
+}
+
+function handleDeleteAttr(attrEn: string) {
+  ontologyStore.deleteEntityAttr(props.entity.id, attrEn)
+  message.success(`已删除属性: ${attrEn}`)
+}
+
+function handleBatchDeleteAttrs() {
+  const count = selectedAttrs.value.length
+  ontologyStore.batchDeleteEntityAttrs(props.entity.id, selectedAttrs.value)
+  message.success(`已删除 ${count} 个属性`)
+  selectedAttrs.value = []
 }
 
 function handleDelete() {
-  // 删除逻辑
+  ontologyStore.deleteEntity(props.entity.id)
+  message.success(`已删除实体: ${props.entity.nameCn || props.entity.name}`)
 }
 </script>
 
@@ -330,6 +434,22 @@ function handleDelete() {
   gap: 5px;
 }
 
+.attr-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.attr-delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.attr-row:hover .attr-delete-btn {
+  opacity: 1;
+}
+
 .table-name {
   margin-left: auto;
   display: inline-flex;
@@ -351,11 +471,12 @@ function handleDelete() {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  table-layout: fixed;
 }
 
 .attr-table th {
   text-align: left;
-  padding: 6px 10px;
+  padding: 5px 8px;
   font-weight: 500;
   color: var(--text-secondary);
   font-size: 11px;
@@ -364,7 +485,7 @@ function handleDelete() {
 }
 
 .attr-table td {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
 }
@@ -373,16 +494,26 @@ function handleDelete() {
   background: #FAFAFA;
 }
 
+.col-checkbox {
+  width: 32px;
+  text-align: center;
+}
+
 .col-term {
   width: 25%;
 }
 
 .col-attr {
-  width: 40%;
+  width: 35%;
 }
 
 .col-field {
-  width: 35%;
+  width: 30%;
+}
+
+.col-action {
+  width: 50px;
+  text-align: center;
 }
 
 .attr-en {
@@ -411,14 +542,18 @@ function handleDelete() {
 .attr-term {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: 3px;
+  font-size: 10px;
   color: var(--primary-color);
   cursor: pointer;
-  padding: 3px 8px;
+  padding: 2px 6px;
   background: #F4EEFF;
-  border-radius: 4px;
+  border-radius: 3px;
   border: 1px solid #D3B4FF;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .attr-term:hover {
@@ -428,14 +563,18 @@ function handleDelete() {
 .attr-field {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: 3px;
+  font-size: 10px;
   color: var(--text-regular);
   cursor: pointer;
-  padding: 3px 8px;
+  padding: 2px 6px;
   background: #F0F0F0;
-  border-radius: 4px;
+  border-radius: 3px;
   border: 1px solid var(--border-color);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .attr-field:hover {

@@ -2,116 +2,125 @@
   <div class="task-view">
     <TopBar />
 
-    <!-- 步骤1: 本体数据采集 -->
-    <div v-if="currentStep === 1" class="workspace-container active">
-      <StepForm v-if="viewMode === 'form'" :key="'form'" />
-      <FlowCanvas v-else :key="'canvas'" />
-    </div>
-
-    <!-- 步骤2: 实体数据提取 -->
-    <div v-if="currentStep === 2" class="workspace-container active step2-workspace">
-      <div class="step-page-wrap">
-        <div class="step2-content">
-          <OntologyTree />
-          <EntityList />
+    <!-- 主体内容区 -->
+    <div class="task-main" :class="{ 'with-copilot': copilotStore.visible }">
+      <!-- 步骤内容 -->
+      <div class="task-content">
+        <!-- 步骤1: 本体数据采集 -->
+        <div v-if="currentStep === 1" class="workspace-container active">
+          <StepForm v-if="viewMode === 'form'" :key="'form'" />
+          <FlowCanvas v-else :key="'canvas'" />
         </div>
-        <div class="step-page-footer">
-          <div class="footer-left">
-            <InfoCircleOutlined />
-            步骤 2 / 5
+
+        <!-- 步骤2: 实体数据提取 -->
+        <div v-if="currentStep === 2" class="workspace-container active step2-workspace">
+          <div class="step-page-wrap">
+            <div class="step2-content">
+              <OntologyTree />
+              <EntityList />
+            </div>
+            <div class="step-page-footer">
+              <div class="footer-left">
+                <InfoCircleOutlined />
+                步骤 2 / 5
+              </div>
+              <a-button @click="goToStep(1)">
+                <ArrowLeftOutlined />
+                上一步
+              </a-button>
+              <a-button type="default">
+                <SaveOutlined />
+                保存
+              </a-button>
+              <a-button type="primary" @click="goToStep(3)">
+                下一步：关联构建
+                <ArrowRightOutlined />
+              </a-button>
+            </div>
           </div>
-          <a-button @click="goToStep(1)">
-            <ArrowLeftOutlined />
-            上一步
-          </a-button>
-          <a-button type="default">
-            <SaveOutlined />
-            保存
-          </a-button>
-          <a-button type="primary" @click="goToStep(3)">
-            下一步：关联构建
-            <ArrowRightOutlined />
-          </a-button>
+        </div>
+
+        <!-- 步骤3: 关联构建 -->
+        <div v-if="currentStep === 3" class="workspace-container active step3-workspace">
+          <div class="step-page-wrap">
+            <div class="step3-content">
+              <OntologyTree />
+              <RelationList />
+            </div>
+            <div class="step-page-footer">
+              <div class="footer-left">
+                <InfoCircleOutlined />
+                步骤 3 / 5
+              </div>
+              <a-button @click="goToStep(2)">
+                <ArrowLeftOutlined />
+                上一步
+              </a-button>
+              <a-button type="default">
+                <SaveOutlined />
+                保存
+              </a-button>
+              <a-button type="primary" @click="goToStep(4)">
+                下一步：规则识别
+                <ArrowRightOutlined />
+              </a-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 步骤4: 规则识别 -->
+        <div v-if="currentStep === 4" class="workspace-container active step4-workspace">
+          <div class="step-page-wrap">
+            <RuleDefinition />
+            <div class="step-page-footer">
+              <div class="footer-left">
+                <InfoCircleOutlined />
+                步骤 4 / 5
+              </div>
+              <a-button @click="goToStep(3)">
+                <ArrowLeftOutlined />
+                上一步
+              </a-button>
+              <a-button type="default">
+                <SaveOutlined />
+                保存
+              </a-button>
+              <a-button type="primary" @click="goToStep(5)">
+                下一步：动作识别
+                <ArrowRightOutlined />
+              </a-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 步骤5: 动作识别 -->
+        <div v-if="currentStep === 5" class="workspace-container active step5-workspace">
+          <div class="step-page-wrap">
+            <ActionDefinition />
+            <div class="step-page-footer">
+              <div class="footer-left">
+                <InfoCircleOutlined />
+                步骤 5 / 5
+              </div>
+              <a-button @click="goToStep(4)">
+                <ArrowLeftOutlined />
+                上一步
+              </a-button>
+              <a-button type="default">
+                <SaveOutlined />
+                保存
+              </a-button>
+              <a-button type="primary" style="background: var(--success-color); border-color: var(--success-color);" @click="handleComplete">
+                <CheckOutlined />
+                完成并提交
+              </a-button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 步骤3: 关联构建 -->
-    <div v-if="currentStep === 3" class="workspace-container active step3-workspace">
-      <div class="step-page-wrap">
-        <div class="step3-content">
-          <OntologyTree />
-          <RelationList />
-        </div>
-        <div class="step-page-footer">
-          <div class="footer-left">
-            <InfoCircleOutlined />
-            步骤 3 / 5
-          </div>
-          <a-button @click="goToStep(2)">
-            <ArrowLeftOutlined />
-            上一步
-          </a-button>
-          <a-button type="default">
-            <SaveOutlined />
-            保存
-          </a-button>
-          <a-button type="primary" @click="goToStep(4)">
-            下一步：规则识别
-            <ArrowRightOutlined />
-          </a-button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 步骤4: 规则识别 -->
-    <div v-if="currentStep === 4" class="workspace-container active step4-workspace">
-      <div class="step-page-wrap">
-        <RuleDefinition />
-        <div class="step-page-footer">
-          <div class="footer-left">
-            <InfoCircleOutlined />
-            步骤 4 / 5
-          </div>
-          <a-button @click="goToStep(3)">
-            <ArrowLeftOutlined />
-            上一步
-          </a-button>
-          <a-button type="default">
-            <SaveOutlined />
-            保存
-          </a-button>
-          <a-button type="primary" @click="goToStep(5)">
-            下一步：动作识别
-            <ArrowRightOutlined />
-          </a-button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 步骤5: 动作识别 -->
-    <div v-if="currentStep === 5" class="workspace-container active step5-workspace">
-      <div class="step-page-wrap">
-        <ActionDefinition />
-        <div class="step-page-footer">
-          <div class="footer-left">
-            <InfoCircleOutlined />
-            步骤 5 / 5
-          </div>
-          <a-button @click="goToStep(4)">
-            <ArrowLeftOutlined />
-            上一步
-          </a-button>
-          <a-button type="default">
-            <SaveOutlined />
-            保存
-          </a-button>
-          <a-button type="primary" style="background: var(--success-color); border-color: var(--success-color);" @click="handleComplete">
-            <CheckOutlined />
-            完成并提交
-          </a-button>
-        </div>
-      </div>
+      <!-- AI 助手面板（右侧并排） -->
+      <AICopilotPanel v-if="copilotStore.visible" />
     </div>
 
     <!-- 模态框 -->
@@ -160,12 +169,14 @@ import FieldMappingModal from '@/components/modals/FieldMappingModal.vue'
 import RelationModal from '@/components/modals/RelationModal.vue'
 import ImpactEntityList from '@/components/modals/ImpactEntityList.vue'
 import RuleEditModal from '@/components/modals/RuleEditModal.vue'
-import { useTaskStore, useUIStore, useOntologyStore } from '@/stores'
+import AICopilotPanel from '@/components/copilot/AICopilotPanel.vue'
+import { useTaskStore, useUIStore, useOntologyStore, useCopilotStore } from '@/stores'
 
 const router = useRouter()
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
 const ontologyStore = useOntologyStore()
+const copilotStore = useCopilotStore()
 
 // Modal refs
 const impactEntityListRef = ref()
@@ -241,6 +252,25 @@ watch(currentStep, (newStep) => {
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-body);
+}
+
+/* 任务主体布局 - 包含内容和 AI 面板 */
+.task-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.task-main.with-copilot .task-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .workspace-container {
