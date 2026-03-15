@@ -21,12 +21,13 @@
       <div class="table-list">
         <div
           v-for="table in filteredTables"
-          :key="table"
-          :class="['table-item', { selected: selectedTable === table }]"
-          @click="selectedTable = table"
+          :key="table.code"
+          :class="['table-item', { selected: selectedTable === table.code }]"
+          @click="selectedTable = table.code"
         >
           <TableOutlined />
-          <span class="table-name">{{ table }}</span>
+          <span class="table-code">{{ table.code }}</span>
+          <span class="table-name">{{ table.name }}</span>
         </div>
         <a-empty v-if="filteredTables.length === 0 && searchText" description="未找到匹配的库表" />
       </div>
@@ -78,27 +79,35 @@ const searchText = ref('')
 const selectedTable = ref('')
 const customTable = ref('')
 
+// 库表选项接口
+interface TableOption {
+  code: string
+  name: string
+}
+
 // 模拟库表列表（实际应该从后端获取）
-const availableTables = ref([
-  't_user',
-  't_user_profile',
-  't_user_auth',
-  't_user_contact',
-  't_user_address',
-  't_user_account',
-  't_order',
-  't_order_item',
-  't_payment',
-  't_product',
-  't_product_spec',
-  't_bill',
-  't_bill_detail'
+const availableTables = ref<TableOption[]>([
+  { code: 't_user', name: '用户表' },
+  { code: 't_user_profile', name: '用户资料表' },
+  { code: 't_user_auth', name: '用户认证表' },
+  { code: 't_user_contact', name: '用户联系方式表' },
+  { code: 't_user_address', name: '用户地址表' },
+  { code: 't_user_account', name: '用户账户表' },
+  { code: 't_order', name: '订单表' },
+  { code: 't_order_item', name: '订单明细表' },
+  { code: 't_payment', name: '支付表' },
+  { code: 't_product', name: '产品表' },
+  { code: 't_product_spec', name: '产品规格表' },
+  { code: 't_bill', name: '账单表' },
+  { code: 't_bill_detail', name: '账单明细表' }
 ])
 
 const filteredTables = computed(() => {
   if (!searchText.value) return availableTables.value
+  const kw = searchText.value.toLowerCase()
   return availableTables.value.filter(t =>
-    t.toLowerCase().includes(searchText.value.toLowerCase())
+    t.code.toLowerCase().includes(kw) ||
+    t.name.toLowerCase().includes(kw)
   )
 })
 
@@ -167,8 +176,16 @@ function handleConfirm() {
   color: var(--primary-color);
 }
 
+.table-item .table-code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .table-item .table-name {
   font-size: 13px;
+  color: var(--text-regular);
+  margin-left: auto;
 }
 
 .custom-input {
