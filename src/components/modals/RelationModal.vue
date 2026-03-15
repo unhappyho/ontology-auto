@@ -67,7 +67,7 @@
         </a-col>
       </a-row>
 
-      <a-form-item label="术语关联（可选）">
+      <a-form-item label="术语关联（可选）" v-if="!isEdit">
         <a-select
           v-model:value="formState.termId"
           placeholder="选择关联术语"

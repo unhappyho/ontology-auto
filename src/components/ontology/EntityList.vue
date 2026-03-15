@@ -5,6 +5,10 @@
         <AppstoreOutlined style="color: #722ED1;" />
         <span>{{ ontologyName }}</span>
         <span class="title-suffix">已识别实体</span>
+        <a-button type="primary" ghost size="small" class="ai-btn" @click="handleAIExtract">
+          <RobotOutlined />
+          AI 提取
+        </a-button>
       </div>
       <div class="entity-extract-stats">
         <span class="stat-num total">{{ total }}</span>
@@ -15,6 +19,18 @@
         <span class="divider"></span>
         <span class="stat-num existing">{{ existCnt }}</span>
         <span>已入库</span>
+        <span class="divider"></span>
+        <a-checkbox v-model:checked="selectAll" @change="handleSelectAll">全选</a-checkbox>
+        <a-button
+          v-if="selectedEntities.length > 0"
+          type="text"
+          danger
+          size="small"
+          @click="handleBatchDeleteEntities"
+        >
+          <DeleteOutlined />
+          删除选中 ({{ selectedEntities.length }})
+        </a-button>
       </div>
     </div>
 
@@ -26,6 +42,9 @@
         :color="getEntityColor(index)"
         :domain-label="domainLabel"
         :reextract-animation="showReextractAnimation"
+        :default-expanded="index === 0"
+        :is-selected="selectedEntities.includes(entity.id)"
+        @select="handleEntitySelect"
       />
     </div>
 
@@ -41,17 +60,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   AppstoreOutlined,
   LeftOutlined,
-  RightOutlined
+  RightOutlined,
+  DeleteOutlined,
+  RobotOutlined
 } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
 import EntityCard from './EntityCard.vue'
-import { useOntologyStore } from '@/stores'
+import { useOntologyStore, useCopilotStore } from '@/stores'
 import { ENTITY_COLORS } from '@/constants'
 
 const ontologyStore = useOntologyStore()
+const copilotStore = useCopilotStore()
 
 const ontologyName = computed(() => ontologyStore.currentOntology?.label ?? '未选择')
 const total = computed(() => ontologyStore.currentOntology?.total ?? 0)
@@ -61,9 +84,68 @@ const entities = computed(() => ontologyStore.currentEntities)
 const domainLabel = computed(() => ontologyStore.getLeafLabel(ontologyStore.currentOntologyId))
 const showReextractAnimation = computed(() => ontologyStore.showReextractAnimation)
 
+// 选中的实体
+const selectedEntities = ref<string[]>([])
+
+// 全选状态
+const selectAll = computed({
+  get: () => selectedEntities.value.length === entities.value.length && entities.value.length > 0,
+  set: (val: boolean) => {
+    if (val) {
+      selectedEntities.value = entities.value.map(e => e.id)
+    } else {
+      selectedEntities.value = []
+    }
+  }
+})
+
 function getEntityColor(index: number): string {
   return ENTITY_COLORS[index % ENTITY_COLORS.length]
 }
+
+function handleEntitySelect(entityId: string, checked: boolean) {
+  if (checked) {
+    if (!selectedEntities.value.includes(entityId)) {
+      selectedEntities.value.push(entityId)
+    }
+  } else {
+    const index = selectedEntities.value.indexOf(entityId)
+    if (index > -1) {
+      selectedEntities.value.splice(index, 1)
+    }
+  }
+}
+
+function handleSelectAll(e: any) {
+  const checked = e.target.checked
+  if (checked) {
+    selectedEntities.value = entities.value.map(e => e.id)
+  } else {
+    selectedEntities.value = []
+  }
+}
+
+function handleBatchDeleteEntities() {
+  const count = selectedEntities.value.length
+  ontologyStore.batchDeleteEntities(selectedEntities.value)
+  message.success(`已删除 ${count} 个实体`)
+  selectedEntities.value = []
+}
+
+// AI 实体提取
+function handleAIExtract() {
+  copilotStore.triggerAIAnalysis(2)
+}
+
+// 监听重新识别动作
+watch(
+  () => copilotStore.reidentifyAction,
+  (action) => {
+    if (action === 'reextract-entities') {
+      ontologyStore.triggerReextractAnimation()
+    }
+  }
+)
 </script>
 
 <style scoped>
@@ -98,6 +180,10 @@ function getEntityColor(index: number): string {
   font-size: 11px;
   color: var(--text-secondary);
   font-weight: normal;
+}
+
+.ai-btn {
+  margin-left: 10px;
 }
 
 .entity-extract-stats {

@@ -112,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   FolderOutlined,
   AimOutlined,
@@ -121,6 +121,9 @@ import {
   ThunderboltOutlined,
   EditOutlined
 } from '@ant-design/icons-vue'
+import { useCopilotStore } from '@/stores'
+
+const copilotStore = useCopilotStore()
 
 const selectedRuleType = ref('派生关系')
 const isAnalyzing = ref(false)
@@ -170,6 +173,10 @@ const confirmedCount = computed(() => {
 })
 
 function handleAIAnalyze() {
+  // 触发副驾分析
+  copilotStore.triggerAIAnalysis(4)
+
+  // 左侧进度条动画
   isAnalyzing.value = true
   analyzeProgress.value = 0
 
@@ -181,6 +188,16 @@ function handleAIAnalyze() {
     }
   }, 200)
 }
+
+// 监听重新识别动作
+watch(
+  () => copilotStore.reidentifyAction,
+  (action) => {
+    if (action === 'reextract-rules') {
+      handleAIAnalyze()
+    }
+  }
+)
 
 function handleAdjust() {
   // 调整逻辑

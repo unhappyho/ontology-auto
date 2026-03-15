@@ -8,37 +8,26 @@
       <router-view />
     </div>
 
-    <!-- AI 副驾 (暂时隐藏)
-    <AICopilotPanel />
-    -->
+    <!-- AI 副驾悬浮球 -->
+    <FloatingBall />
+
+    <!-- 首页 AI 副驾浮层（非任务页面时渲染） -->
+    <HomeCopilotPanel v-if="copilotStore.visible && !isTaskPage" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '@/components/common/AppHeader.vue'
-// import AICopilotPanel from '@/components/copilot/AICopilotPanel.vue'
-import { useTaskStore, useCopilotStore } from '@/stores'
+import FloatingBall from '@/components/copilot/FloatingBall.vue'
+import HomeCopilotPanel from '@/components/copilot/HomeCopilotPanel.vue'
+import { useCopilotStore } from '@/stores'
 
 const route = useRoute()
-const taskStore = useTaskStore()
 const copilotStore = useCopilotStore()
 
-// 监听任务步骤变化，同步到副驾Store
-watch(
-  () => taskStore.currentStepId,
-  (newStep) => {
-    if (newStep > 0) {
-      // 在任务配置页面时，设置步骤上下文
-      if (route.path === '/task') {
-        copilotStore.setStepContext(newStep)
-      }
-    } else {
-      copilotStore.clearStepContext()
-    }
-  }
-)
+const isTaskPage = computed(() => route.path === '/task' || route.path.startsWith('/task/'))
 
 // 监听路由变化，离开任务页面时清除上下文
 watch(

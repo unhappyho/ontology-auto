@@ -113,9 +113,13 @@ function handleConfirm() {
   const tableName = customTable.value || selectedTable.value
   if (!tableName) return
 
+  const entityId = modalData.value?.entityId
+
   // 更新实体的库表名
-  if (modalData.value?.entityId) {
-    ontologyStore.updateEntityTableName(modalData.value.entityId, tableName)
+  if (entityId) {
+    ontologyStore.updateEntityTableName(entityId, tableName)
+    // 触发实体刷新动画
+    ontologyStore.triggerEntityReextract(entityId)
   }
 
   handleCancel()

@@ -33,6 +33,9 @@ export const useOntologyStore = defineStore('ontology', () => {
   // 重新抽取动画状态
   const showReextractAnimation = ref(false)
 
+  // 当前正在刷新的实体ID
+  const reextractingEntityId = ref<string | null>(null)
+
   // 当前本体信息
   const currentOntology = computed((): OntologyLeaf | null => {
     for (const l1 of ONTOLOGY_TREE) {
@@ -86,14 +89,14 @@ export const useOntologyStore = defineStore('ontology', () => {
 
   // 关联数据
   const relations = ref<EntityRelation[]>([
-    { id: 'r1', relationCategory: 'entity', sourceEntityId: 'e2', sourceEntityName: '认证信息', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'belongs_to', relationNameCn: '属于', relationType: '1:1', isRequired: true, termId: 'term_101', termName: '归属关系', isNew: false },
-    { id: 'r2', relationCategory: 'entity', sourceEntityId: 'e3', sourceEntityName: '联系方式', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'links_to', relationNameCn: '关联', relationType: '1:N', isRequired: false, termId: 'term_102', termName: '关联关系', isNew: true },
-    { id: 'r3', relationCategory: 'entity', sourceEntityId: 'e4', sourceEntityName: '用户地址', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'has', relationNameCn: '拥有', relationType: '1:N', isRequired: false, isNew: false },
-    { id: 'r4', relationCategory: 'entity', sourceEntityId: 'e5', sourceEntityName: '账户信息', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'owns', relationNameCn: '持有', relationType: '1:1', isRequired: true, isNew: false },
+    { id: 'r1', relationCategory: 'entity', sourceEntityId: 'e2', sourceEntityName: '认证信息', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'belongs_to', relationNameCn: '属于', relationType: '1:1', isRequired: true, termId: 'term_101', termName: '归属关系', confidence: 'high', isNew: false },
+    { id: 'r2', relationCategory: 'entity', sourceEntityId: 'e3', sourceEntityName: '联系方式', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'links_to', relationNameCn: '关联', relationType: '1:N', isRequired: false, termId: 'term_102', termName: '关联关系', confidence: 'high', isNew: true },
+    { id: 'r3', relationCategory: 'entity', sourceEntityId: 'e4', sourceEntityName: '用户地址', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'has', relationNameCn: '拥有', relationType: '1:N', isRequired: false, confidence: 'mid', isNew: false },
+    { id: 'r4', relationCategory: 'entity', sourceEntityId: 'e5', sourceEntityName: '账户信息', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'owns', relationNameCn: '持有', relationType: '1:1', isRequired: true, confidence: 'high', isNew: false },
     { id: 'r5', relationCategory: 'entity', sourceEntityId: 'e1', sourceEntityName: '用户', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'refers_to', relationNameCn: '引用', relationType: 'N:N', isRequired: false, confidence: 'mid', isNew: true },
     // 事件类型关系示例
-    { id: 'r6', relationCategory: 'event', sourceEntityId: 'e1', sourceEntityName: '用户', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'purchased', relationNameCn: '购买', relationType: '1:N', isRequired: false, termId: 'term_103', termName: '购买关系', isNew: true },
-    { id: 'r7', relationCategory: 'event', sourceEntityId: 'e1', sourceEntityName: '用户', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'clicked', relationNameCn: '点击', relationType: '1:N', isRequired: false, isNew: true }
+    { id: 'r6', relationCategory: 'event', sourceEntityId: 'e1', sourceEntityName: '用户', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'purchased', relationNameCn: '购买', relationType: '1:N', isRequired: false, termId: 'term_103', termName: '购买关系', confidence: 'low', isNew: true },
+    { id: 'r7', relationCategory: 'event', sourceEntityId: 'e1', sourceEntityName: '用户', targetEntityId: 'e1', targetEntityName: '用户', relationName: 'clicked', relationNameCn: '点击', relationType: '1:N', isRequired: false, confidence: 'low', isNew: false }
   ])
 
   // 当前本体的关联列表（根据分类过滤）
@@ -180,6 +183,15 @@ export const useOntologyStore = defineStore('ontology', () => {
     showReextractAnimation.value = false
   }
 
+  // 触发单个实体刷新（弹窗确认后调用）
+  function triggerEntityReextract(entityId: string) {
+    reextractingEntityId.value = entityId
+    // 模拟刷新完成
+    setTimeout(() => {
+      reextractingEntityId.value = null
+    }, 1500)
+  }
+
   // 开始映射识别
   function startMappingRecognition() {
     isMappingRecognizing.value = true
@@ -245,6 +257,50 @@ export const useOntologyStore = defineStore('ontology', () => {
     }
   }
 
+  // 删除实体的单个属性
+  function deleteEntityAttr(entityId: string, attrEn: string) {
+    const entities = ENTITY_DATA[currentOntologyId.value]
+    if (!entities) return
+    const entity = entities.find(e => e.id === entityId)
+    if (entity) {
+      const attrIndex = entity.attrs.findIndex(a => a.en === attrEn)
+      if (attrIndex !== -1) {
+        entity.attrs.splice(attrIndex, 1)
+      }
+    }
+  }
+
+  // 批量删除实体属性
+  function batchDeleteEntityAttrs(entityId: string, attrEns: string[]) {
+    const entities = ENTITY_DATA[currentOntologyId.value]
+    if (!entities) return
+    const entity = entities.find(e => e.id === entityId)
+    if (entity) {
+      entity.attrs = entity.attrs.filter(a => !attrEns.includes(a.en))
+    }
+  }
+
+  // 删除实体
+  function deleteEntity(entityId: string) {
+    const entities = ENTITY_DATA[currentOntologyId.value]
+    if (!entities) return
+    const index = entities.findIndex(e => e.id === entityId)
+    if (index !== -1) {
+      entities.splice(index, 1)
+    }
+  }
+
+  // 批量删除实体
+  function batchDeleteEntities(entityIds: string[]) {
+    const entities = ENTITY_DATA[currentOntologyId.value]
+    if (!entities) return
+    // 使用 filter 保留不在删除列表中的实体
+    const remaining = entities.filter(e => !entityIds.includes(e.id))
+    // 替换原数组
+    entities.length = 0
+    entities.push(...remaining)
+  }
+
   return {
     openL1,
     openL2,
@@ -255,6 +311,7 @@ export const useOntologyStore = defineStore('ontology', () => {
     isRecognizing,
     isMappingRecognizing,
     showReextractAnimation,
+    reextractingEntityId,
     currentOntology,
     currentL1,
     currentL2,
@@ -275,9 +332,14 @@ export const useOntologyStore = defineStore('ontology', () => {
     stopMappingRecognition,
     triggerReextractAnimation,
     clearReextractAnimation,
+    triggerEntityReextract,
     getEntityColor,
     getLeafLabel,
     updateEntityTableName,
+    deleteEntityAttr,
+    batchDeleteEntityAttrs,
+    deleteEntity,
+    batchDeleteEntities,
     addRelation,
     updateRelation,
     deleteRelation

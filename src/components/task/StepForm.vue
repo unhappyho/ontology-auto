@@ -3,8 +3,16 @@
     <div class="step-page-body">
       <div class="form-page-container">
         <div class="form-header">
-          <div class="form-page-title">本体数据采集</div>
-          <div class="form-page-desc">配置数据来源、采集方式及采集范围</div>
+          <div class="form-header-left">
+            <div class="form-page-title">本体数据采集</div>
+            <div class="form-page-desc">配置数据来源、采集方式及采集范围</div>
+          </div>
+          <div class="form-header-right">
+            <a-button type="primary" ghost @click="handleAIRecommend">
+              <RobotOutlined />
+              AI 智能推荐
+            </a-button>
+          </div>
         </div>
 
         <!-- 基础规则配置 -->
@@ -48,16 +56,6 @@
                 <a-select-option value="script">自定义脚本</a-select-option>
                 <a-select-option value="offline">离线开发</a-select-option>
               </a-select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-label">采集方式</div>
-            <div class="form-control">
-              <a-radio-group v-model:value="collectMode">
-                <a-radio value="full">全量</a-radio>
-                <a-radio value="incremental">增量</a-radio>
-              </a-radio-group>
             </div>
           </div>
 
@@ -180,6 +178,13 @@
         </div>
 
         <!-- 采集范围选择 -->
+        <div v-if="isTableLoading" class="ai-scan-banner">
+          <div class="scan-bar"></div>
+          <div class="scan-text">
+            <LoadingOutlined spin />
+            AI 正在智能分析表结构，推荐采集范围...
+          </div>
+        </div>
         <div v-if="(collectItem !== 'script' && collectItem !== 'offline') || scriptConfigured || (collectItem === 'offline' && offlineTaskConfigured && schedulerCompleted)" class="form-section-card">
           <div class="form-section-title">
             <span class="step-badge">2</span>
@@ -199,6 +204,7 @@
             :columns="tableColumns"
             :data-source="filteredTables"
             :pagination="false"
+            :loading="isTableLoading"
             size="small"
             row-key="name"
           >
@@ -258,7 +264,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   CodeOutlined,
@@ -271,13 +277,16 @@ import {
   SaveOutlined,
   ArrowRightOutlined,
   CloudServerOutlined,
-  EditOutlined
+  EditOutlined,
+  RobotOutlined,
+  LoadingOutlined
 } from '@ant-design/icons-vue'
-import { useTaskStore, useUIStore } from '@/stores'
+import { useTaskStore, useUIStore, useCopilotStore } from '@/stores'
 
 const router = useRouter()
 const taskStore = useTaskStore()
 const uiStore = useUIStore()
+const copilotStore = useCopilotStore()
 
 const dataType = computed({
   get: () => taskStore.dataType,
@@ -287,11 +296,6 @@ const dataType = computed({
 const collectItem = computed({
   get: () => taskStore.collectItem,
   set: (v) => taskStore.updateCollectItem(v)
-})
-
-const collectMode = computed({
-  get: () => taskStore.collectMode,
-  set: () => {}
 })
 
 const dataSource = computed({
@@ -321,6 +325,14 @@ const schedulerTasks = ref([
 ])
 
 const searchKeyword = ref('')
+const isTableLoading = ref(false)
+
+function triggerTableLoading() {
+  isTableLoading.value = true
+  setTimeout(() => {
+    isTableLoading.value = false
+  }, 2000)
+}
 
 const tableColumns = [
   { key: 'checkbox', width: 36 },
@@ -374,12 +386,29 @@ function handleBack() {
   router.push('/')
 }
 
+// AI 智能推荐
+function handleAIRecommend() {
+  copilotStore.triggerAIAnalysis(1)
+  triggerTableLoading()
+}
+
+// 监听重新识别动作
+watch(
+  () => copilotStore.reidentifyAction,
+  (action) => {
+    if (action === 'reextract-tables') {
+      triggerTableLoading()
+    }
+  }
+)
+
 function handleNext() {
   // 如果选择了离线开发，需要等待调度任务完成才能进入下一步
   if (collectItem.value === 'offline' && !schedulerCompleted.value) {
     return
   }
   taskStore.switchStep(2)
+  copilotStore.triggerAIAnalysis(2)
 }
 
 // 判断下一步按钮是否可用
@@ -441,6 +470,17 @@ const canProceed = computed(() => {
 
 .form-header {
   margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.form-header-left {
+  flex: 1;
+}
+
+.form-header-right {
+  flex-shrink: 0;
 }
 
 .form-page-title {
@@ -748,5 +788,40 @@ const canProceed = computed(() => {
 
 .page-item:hover:not(.active) {
   background-color: #f2f3f5;
+}
+
+/* ---- AI 扫描 Banner ---- */
+.ai-scan-banner {
+  position: relative;
+  overflow: hidden;
+  background: #f9f0ff;
+  border-left: 4px solid #722ed1;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.scan-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 4px;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, #722ed1, transparent);
+  animation: scan-sweep 1.2s linear infinite;
+}
+
+@keyframes scan-sweep {
+  0% { left: -30%; }
+  100% { left: 110%; }
+}
+
+.scan-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #722ed1;
+  font-weight: 500;
 }
 </style>

@@ -33,9 +33,15 @@
           <span class="entity-tag">{{ record.targetEntityName }}</span>
         </template>
         <template v-else-if="column.key === 'confidence'">
-          <span v-if="record.confidence" :class="['confidence-tag', record.confidence]">
-            {{ getConfidenceLabel(record.confidence) }}
-          </span>
+          <a-tooltip v-if="record.confidence" :title="getConfidenceReason(record.confidence)">
+            <span :class="['confidence-tag', record.confidence]">
+              {{ getConfidenceLabel(record.confidence) }}
+            </span>
+          </a-tooltip>
+          <span v-else class="text-muted">-</span>
+        </template>
+        <template v-else-if="column.key === 'isNew'">
+          <span v-if="record.isNew" class="new-badge">新发现</span>
           <span v-else class="text-muted">-</span>
         </template>
         <template v-else-if="column.key === 'action'">
@@ -96,11 +102,12 @@ const uiStore = useUIStore()
 const relations = computed(() => ontologyStore.currentRelations)
 
 const columns = [
-  { title: '源实体', key: 'source', width: '20%' },
-  { title: '关系', key: 'relation', width: '30%' },
-  { title: '目标实体', key: 'target', width: '20%' },
-  { title: '置信度', key: 'confidence', width: '15%' },
-  { title: '操作', key: 'action', width: '15%' }
+  { title: '源实体', key: 'source', width: '18%' },
+  { title: '关系', key: 'relation', width: '26%' },
+  { title: '目标实体', key: 'target', width: '18%' },
+  { title: '置信度', key: 'confidence', width: '10%' },
+  { title: '是否新发现', key: 'isNew', width: '10%' },
+  { title: '操作', key: 'action', width: '18%' }
 ]
 
 function getRelationTypeLabel(type: RelationType): string {
@@ -119,6 +126,15 @@ function getConfidenceLabel(confidence: ConfidenceLevel): string {
     low: '低'
   }
   return labels[confidence] || ''
+}
+
+function getConfidenceReason(confidence: ConfidenceLevel): string {
+  const reasons: Record<ConfidenceLevel, string> = {
+    high: '字段名与属性名完全匹配，数据类型一致',
+    mid: '字段名与属性名部分匹配，或存在别名映射',
+    low: '字段名与属性名相似度低，需要人工确认'
+  }
+  return reasons[confidence] || ''
 }
 
 function handleAddRelation() {
@@ -234,6 +250,15 @@ function handleDelete(id: string) {
 .confidence-tag.low {
   background: #FFF1F0;
   color: var(--danger-color);
+}
+
+.new-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 10px;
+  border-radius: 3px;
+  background: #F4EEFF;
+  color: #722ED1;
 }
 
 .action-buttons {
