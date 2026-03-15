@@ -10,6 +10,7 @@ export interface CopilotMessage {
   type: MessageType
   content: string
   cards?: SuggestionCard[]
+  thinkingSteps?: string[]
   timestamp: number
 }
 
@@ -26,6 +27,46 @@ export interface SuggestionCard {
   action?: 'addEntity' | 'addRelation' | 'addTable' | 'applyRule'
   reidentifyAction?: string
 }
+
+// 各步骤 AI 深度思考步骤
+const STEP_THINKING_STEPS: Record<number, string[]> = {
+  1: [
+    '正在扫描可用数据源列表...',
+    '分析表结构与字段语义...',
+    '匹配业务场景推荐策略...',
+    '生成最优配置建议...'
+  ],
+  2: [
+    '遍历原始数据特征...',
+    '识别命名实体边界...',
+    '合并同义实体候选...',
+    '统计实体分布与置信度...'
+  ],
+  3: [
+    '构建实体共现矩阵...',
+    '推断隐式关联关系...',
+    '验证关系合理性...',
+    '发现跨域潜在关联...'
+  ],
+  4: [
+    '提取条件-结论规则模式...',
+    '推导派生属性逻辑...',
+    '验证规则一致性...',
+    '量化规则覆盖度...'
+  ],
+  5: [
+    '识别用户行为序列...',
+    '归纳动作模式类型...',
+    '分析行为路径转化率...',
+    '建议优化动作触发条件...'
+  ]
+}
+
+export const GENERIC_THINKING_STEPS = [
+  '理解问题意图...',
+  '检索相关上下文...',
+  '整合分析结果...'
+]
 
 // 各步骤 AI 分析完成后的文字说明
 const STEP_ANALYSIS_TEXTS: Record<number, string> = {
@@ -224,13 +265,14 @@ export const useCopilotStore = defineStore('copilot', () => {
   }
 
   // 添加 thinking 消息，返回消息ID
-  function addThinkingMessage(): string {
+  function addThinkingMessage(steps?: string[]): string {
     const id = genMsgId()
     messages.value.push({
       id,
       role: 'assistant',
       type: 'thinking',
       content: '',
+      thinkingSteps: steps,
       timestamp: Date.now()
     })
     return id
@@ -296,7 +338,7 @@ export const useCopilotStore = defineStore('copilot', () => {
   function triggerAIAnalysis(stepId: number) {
     currentStepId.value = stepId
     openPanel()
-    const thinkingMsgId = addThinkingMessage()
+    const thinkingMsgId = addThinkingMessage(STEP_THINKING_STEPS[stepId])
     setTimeout(() => {
       const text = STEP_ANALYSIS_TEXTS[stepId] || 'AI 分析完成。'
       const cards: SuggestionCard[] = (STEP_SUGGESTIONS[stepId] || []).map(s => ({

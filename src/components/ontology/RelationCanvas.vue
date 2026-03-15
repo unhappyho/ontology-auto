@@ -95,6 +95,8 @@
             <UserOutlined v-if="node.type === 'person'" />
             <BankOutlined v-else-if="node.type === 'company'" />
             <MoneyCollectOutlined v-else-if="node.type === 'money'" />
+            <AlertOutlined v-else-if="node.type === 'event'" />
+            <AuditOutlined v-else-if="node.type === 'doc'" />
             <FileTextOutlined v-else />
           </div>
           <div class="node-label">{{ node.label }}</div>
@@ -149,13 +151,15 @@ import {
   BankOutlined,
   MoneyCollectOutlined,
   FileTextOutlined,
+  AlertOutlined,
+  AuditOutlined,
   CloseOutlined
 } from '@ant-design/icons-vue'
 
 interface GraphNode {
   id: string
   label: string
-  type: 'person' | 'company' | 'money'
+  type: 'person' | 'company' | 'money' | 'event' | 'doc'
   typeLabel: string
   color: string
   x: number
@@ -176,38 +180,68 @@ const NODE_SIZE = 80
 const sampleNodes: GraphNode[] = [
   {
     id: 'ent_001', label: '张三', type: 'person', typeLabel: '自然人', color: '#4D9EFF',
-    x: 150, y: 200,
+    x: 150, y: 160,
     attributes: { '证件类型': '身份证', '证件号': '310***********1234' }
   },
   {
     id: 'ent_002', label: '李四', type: 'person', typeLabel: '自然人', color: '#4D9EFF',
-    x: 450, y: 150,
+    x: 480, y: 100,
     attributes: { '证件类型': '身份证', '证件号': '320***********5678' }
   },
   {
     id: 'ent_003', label: '王五', type: 'person', typeLabel: '自然人', color: '#4D9EFF',
-    x: 600, y: 350,
+    x: 680, y: 310,
     attributes: { '证件类型': '身份证', '证件号': '330***********9012' }
   },
   {
     id: 'ent_004', label: 'xx科技有限公司', type: 'company', typeLabel: '企业', color: '#00E5B0',
-    x: 300, y: 350,
+    x: 310, y: 300,
     attributes: { '统一社会信用代码': '91**************12', '注册资本': '500万元', '成立日期': '2018-03-15' }
   },
   {
     id: 'ent_005', label: 'xx贸易有限公司', type: 'company', typeLabel: '企业', color: '#00E5B0',
-    x: 500, y: 470,
+    x: 540, y: 420,
     attributes: { '统一社会信用代码': '91**************34', '注册资本': '100万元', '成立日期': '2019-05-10' }
   },
   {
     id: 'ent_006', label: '500万元', type: 'money', typeLabel: '出资额', color: '#FFB347',
-    x: 130, y: 400,
+    x: 110, y: 350,
     attributes: { '金额': '500万元', '出资方式': '货币' }
   },
   {
     id: 'ent_007', label: '100万元', type: 'money', typeLabel: '出资额', color: '#FFB347',
-    x: 380, y: 250,
+    x: 400, y: 200,
     attributes: { '金额': '100万元', '出资方式': '货币' }
+  },
+  {
+    id: 'ent_008', label: 'xx投资控股集团', type: 'company', typeLabel: '企业', color: '#00E5B0',
+    x: 120, y: 530,
+    attributes: { '统一社会信用代码': '91**************56', '注册资本': '5000万元', '成立日期': '2015-06-20' }
+  },
+  {
+    id: 'ent_009', label: '赵六', type: 'person', typeLabel: '自然人', color: '#4D9EFF',
+    x: 730, y: 150,
+    attributes: { '证件类型': '身份证', '证件号': '340***********3456' }
+  },
+  {
+    id: 'ent_010', label: '1000万元', type: 'money', typeLabel: '出资额', color: '#FFB347',
+    x: 670, y: 510,
+    attributes: { '金额': '1000万元', '出资方式': '实物' }
+  },
+  {
+    id: 'ent_011', label: '股权转让协议', type: 'doc', typeLabel: '文书', color: '#22D3EE',
+    x: 240, y: 530,
+    attributes: { '文书编号': 'GQ-2022-0318', '签署日期': '2022-03-18', '状态': '已生效' }
+  },
+  {
+    id: 'ent_012', label: '工商变更记录', type: 'doc', typeLabel: '文书', color: '#22D3EE',
+    x: 490, y: 590,
+    attributes: { '变更事项': '股东变更', '登记日期': '2022-04-01', '状态': '已备案' }
+  },
+  {
+    id: 'ent_013', label: '虚假注资事件', type: 'event', typeLabel: '事件', color: '#A855F7',
+    x: 370, y: 450,
+    attributes: { '案件类型': '经济犯罪', '涉案金额': '500万元', '状态': '调查中' }
   }
 ]
 
@@ -218,7 +252,14 @@ const sampleEdges: GraphEdge[] = [
   { id: 'edge_004', source: 'ent_002', target: 'ent_007', label: '认缴' },
   { id: 'edge_005', source: 'ent_002', target: 'ent_005', label: '创建' },
   { id: 'edge_006', source: 'ent_003', target: 'ent_002', label: '举报' },
-  { id: 'edge_007', source: 'ent_003', target: 'ent_005', label: '控股' }
+  { id: 'edge_007', source: 'ent_003', target: 'ent_005', label: '控股' },
+  { id: 'edge_008', source: 'ent_008', target: 'ent_004', label: '母公司' },
+  { id: 'edge_009', source: 'ent_009', target: 'ent_008', label: '法定代表人' },
+  { id: 'edge_010', source: 'ent_009', target: 'ent_010', label: '认缴' },
+  { id: 'edge_011', source: 'ent_010', target: 'ent_004', label: '出资至' },
+  { id: 'edge_012', source: 'ent_001', target: 'ent_011', label: '签署' },
+  { id: 'edge_013', source: 'ent_011', target: 'ent_004', label: '标的企业' },
+  { id: 'edge_014', source: 'ent_006', target: 'ent_013', label: '关联' }
 ]
 
 const nodes = ref<GraphNode[]>([...sampleNodes])
@@ -230,7 +271,7 @@ const canvasRef = ref<HTMLElement>()
 
 const isDraggingCanvas = ref(false)
 const canvasOffset = ref({ x: 0, y: 0 })
-const canvasScale = ref(1)
+const canvasScale = ref(0.85)
 const lastMousePos = ref({ x: 0, y: 0 })
 
 const canvasStyle = computed(() => ({
@@ -323,7 +364,7 @@ function resetView() {
   edges.value = [...sampleEdges]
   selectedNode.value = null
   canvasOffset.value = { x: 0, y: 0 }
-  canvasScale.value = 1
+  canvasScale.value = 0.85
 }
 </script>
 
@@ -374,7 +415,7 @@ function resetView() {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 400px;
+  min-height: 560px;
   cursor: grab;
 }
 
