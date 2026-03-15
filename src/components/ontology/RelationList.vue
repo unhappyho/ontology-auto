@@ -76,8 +76,7 @@ import {
 } from '@ant-design/icons-vue'
 import RelationCanvas from './RelationCanvas.vue'
 import RelationTable from './RelationTable.vue'
-import { useOntologyStore } from '@/stores'
-import { useCopilotStore } from '@/stores/copilotStore'
+import { useOntologyStore, useCopilotStore } from '@/stores'
 import type { RelationCategory } from '@/types'
 
 const ontologyStore = useOntologyStore()
