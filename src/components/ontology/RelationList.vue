@@ -19,6 +19,18 @@
         </div>
       </div>
       <div class="header-right">
+        <!-- AI 推断按钮 -->
+        <a-button
+          type="primary"
+          ghost
+          size="small"
+          :loading="isInferring"
+          @click="handleAIInfer"
+        >
+          <RobotOutlined v-if="!isInferring" />
+          {{ isInferring ? '推断中...' : 'AI 推断' }}
+        </a-button>
+
         <div class="view-tabs">
           <div
             :class="['tab-item', { active: viewMode === 'canvas' }]"
@@ -38,10 +50,12 @@
       </div>
     </div>
 
-    <!-- 内容区 -->
+    <!-- 内容区（AI推断时显示 spin 覆盖） -->
     <div class="relation-content">
-      <RelationCanvas v-if="viewMode === 'canvas'" />
-      <RelationTable v-else />
+      <a-spin :spinning="isInferring" tip="AI 正在推断关联关系..." class="relation-spin">
+        <RelationCanvas v-if="viewMode === 'canvas'" />
+        <RelationTable v-else />
+      </a-spin>
     </div>
 
     <!-- 底部统计 -->
@@ -60,24 +74,28 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   AppstoreOutlined,
   UnorderedListOutlined,
   LinkOutlined,
-  DisconnectOutlined
+  DisconnectOutlined,
+  RobotOutlined
 } from '@ant-design/icons-vue'
 import RelationCanvas from './RelationCanvas.vue'
 import RelationTable from './RelationTable.vue'
-import { useOntologyStore } from '@/stores'
+import { useOntologyStore, useCopilotStore } from '@/stores'
 import type { RelationCategory } from '@/types'
 
 const ontologyStore = useOntologyStore()
+const copilotStore = useCopilotStore()
 
 const category = computed(() => ontologyStore.relationCategory)
 const viewMode = computed(() => ontologyStore.relationViewMode)
 const linkedCount = computed(() => ontologyStore.linkedEntityCount)
 const unlinkedCount = computed(() => ontologyStore.unlinkedEntityCount)
+
+const isInferring = ref(false)
 
 function handleCategoryChange(cat: RelationCategory) {
   ontologyStore.switchRelationCategory(cat)
@@ -86,6 +104,28 @@ function handleCategoryChange(cat: RelationCategory) {
 function handleViewModeChange(mode: 'canvas' | 'table') {
   ontologyStore.switchRelationViewMode(mode)
 }
+
+function triggerInferAnimation() {
+  isInferring.value = true
+  setTimeout(() => {
+    isInferring.value = false
+  }, 1800)
+}
+
+function handleAIInfer() {
+  triggerInferAnimation()
+  copilotStore.triggerAIAnalysis(3)
+}
+
+// 监听重新识别动作
+watch(
+  () => copilotStore.reidentifyAction,
+  (action) => {
+    if (action === 'reextract-relations') {
+      triggerInferAnimation()
+    }
+  }
+)
 </script>
 
 <style scoped>
@@ -157,6 +197,16 @@ function handleViewModeChange(mode: 'canvas' | 'table') {
   flex: 1;
   overflow: hidden;
   min-height: 0;
+}
+
+.relation-spin {
+  height: 100%;
+}
+
+.relation-spin :deep(.ant-spin-container) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .relation-footer {

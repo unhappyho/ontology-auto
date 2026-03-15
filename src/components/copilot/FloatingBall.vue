@@ -1,8 +1,9 @@
 <template>
   <Teleport to="body">
     <div
+      v-if="!isTaskPage"
       class="floating-ball"
-      :class="{ dragging }"
+      :class="{ dragging, 'panel-open': copilotStore.visible }"
       :style="ballStyle"
       @mousedown="startDrag"
       @click="handleClick"
@@ -12,31 +13,51 @@
         <div class="ball-icon">
           <RobotOutlined />
         </div>
-        <div class="ball-pulse" v-if="hasNewNotification"></div>
+        <!-- 新建议角标 -->
+        <div v-if="badgeCount > 0 && !copilotStore.visible" class="ball-badge">
+          {{ badgeCount > 9 ? '9+' : badgeCount }}
+        </div>
       </div>
 
       <!-- 提示文字 -->
       <div class="ball-tooltip" v-if="!dragging">
-        <span>AI 助手</span>
+        <span>{{ copilotStore.visible ? '关闭助手' : 'AI 副驾' }}</span>
       </div>
     </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { RobotOutlined } from '@ant-design/icons-vue'
 import { useCopilotStore } from '@/stores'
 
+const BALL_SIZE = 56
+
+const route = useRoute()
 const copilotStore = useCopilotStore()
 
-// 悬浮球位置
+// 任务页面通过 Header 按钮控制，悬浮球不显示
+const isTaskPage = computed(() => route.path === '/task')
+
+// 悬浮球位置（right/bottom 值）
 const position = ref({ x: 20, y: 20 })
 const dragging = ref(false)
+// 拖拽时鼠标相对于球左上角的偏移
 const dragOffset = ref({ x: 0, y: 0 })
 
-// 是否有新通知
-const hasNewNotification = computed(() => copilotStore.hasNewSuggestions)
+// 新建议角标数量（统计消息流中未采纳的卡片）
+const badgeCount = computed(() => {
+  if (!copilotStore.hasNewSuggestions) return 0
+  let count = 0
+  for (const msg of copilotStore.messages) {
+    if (msg.type === 'card-group' && msg.cards) {
+      count += msg.cards.filter(c => !c.accepted && !c.dismissed).length
+    }
+  }
+  return count
+})
 
 // 计算悬浮球样式
 const ballStyle = computed(() => ({
@@ -47,42 +68,44 @@ const ballStyle = computed(() => ({
 // 点击悬浮球 - 切换面板显示
 function handleClick() {
   if (dragging.value) return
-
-  if (copilotStore.visible) {
-    copilotStore.minimizePanel()
-  } else {
-    copilotStore.openPanel()
-  }
+  copilotStore.togglePanel()
 }
 
 // 开始拖拽
 function startDrag(e: MouseEvent) {
   if (e.button !== 0) return
 
-  dragging.value = true
-  const ball = (e.target as HTMLElement).closest('.floating-ball')
-  if (ball) {
-    const rect = ball.getBoundingClientRect()
-    dragOffset.value = {
-      x: e.clientX - rect.right,
-      y: e.clientY - rect.bottom
-    }
+  const ball = (e.target as HTMLElement).closest('.floating-ball') as HTMLElement
+  if (!ball) return
+
+  const rect = ball.getBoundingClientRect()
+  // 记录鼠标相对于球左上角的偏移
+  dragOffset.value = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
   }
 
+  dragging.value = true
   document.addEventListener('mousemove', onDrag)
   document.addEventListener('mouseup', stopDrag)
+  e.preventDefault()
 }
 
-// 拖拽中
+// 拖拽中 - 根据 right/bottom 定位方式换算
 function onDrag(e: MouseEvent) {
   if (!dragging.value) return
 
-  const newX = window.innerWidth - e.clientX - dragOffset.value.x
-  const newY = window.innerHeight - e.clientY - dragOffset.value.y
+  // 球的左上角位置
+  const ballLeft = e.clientX - dragOffset.value.x
+  const ballTop = e.clientY - dragOffset.value.y
+
+  // 转换为 right/bottom 值
+  const newRight = window.innerWidth - ballLeft - BALL_SIZE
+  const newBottom = window.innerHeight - ballTop - BALL_SIZE
 
   position.value = {
-    x: Math.max(0, Math.min(newX, window.innerWidth - 60)),
-    y: Math.max(0, Math.min(newY, window.innerHeight - 60))
+    x: Math.max(0, Math.min(newRight, window.innerWidth - BALL_SIZE)),
+    y: Math.max(0, Math.min(newBottom, window.innerHeight - BALL_SIZE))
   }
 }
 
@@ -96,6 +119,11 @@ function stopDrag() {
 onMounted(() => {
   position.value = { x: 20, y: 20 }
 })
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
+})
 </script>
 
 <style scoped>
@@ -104,28 +132,34 @@ onMounted(() => {
   z-index: 9999;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.1s;
+  transition: transform 0.15s;
 }
 
-.floating-ball:hover {
-  transform: scale(1.05);
+.floating-ball:hover:not(.dragging) {
+  transform: scale(1.08);
 }
 
 .floating-ball.dragging {
   cursor: grabbing;
   transform: scale(1.1);
+  transition: none;
 }
 
 .ball-main {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #722ed1 0%, #531dab 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 16px rgba(114, 46, 209, 0.45);
   position: relative;
+}
+
+.floating-ball.panel-open .ball-main {
+  background: linear-gradient(135deg, #531dab 0%, #391085 100%);
+  box-shadow: 0 4px 16px rgba(114, 46, 209, 0.6);
 }
 
 .ball-icon {
@@ -140,54 +174,51 @@ onMounted(() => {
   font-size: 26px;
 }
 
-/* 脉冲动画 */
-.ball-pulse {
+/* 角标 */
+.ball-badge {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: rgba(102, 126, 234, 0.4);
-  animation: pulse 2s ease-out infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #fff;
 }
 
 /* 提示文字 */
 .ball-tooltip {
   position: absolute;
-  right: 100%;
+  right: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
-  margin-right: 12px;
-  background: #fff;
-  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 5px 10px;
   border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   font-size: 12px;
-  color: #667eea;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: all 0.2s;
+  transition: opacity 0.2s, visibility 0.2s;
+  pointer-events: none;
 }
 
 .ball-tooltip::after {
   content: '';
   position: absolute;
-  right: -6px;
+  left: 100%;
   top: 50%;
   transform: translateY(-50%);
-  border: 6px solid transparent;
-  border-left-color: #fff;
+  border: 5px solid transparent;
+  border-left-color: rgba(0, 0, 0, 0.75);
 }
 
 .floating-ball:hover .ball-tooltip {

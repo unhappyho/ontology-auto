@@ -123,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   ThunderboltOutlined,
   DatabaseOutlined,
@@ -211,14 +211,10 @@ const confirmedCount = computed(() => {
 })
 
 function handleAIAnalyze() {
-  // 打开 AI 助手面板
-  copilotStore.openPanel()
-  // 设置当前步骤上下文
-  copilotStore.setStepContext(5)
-  // 添加分析消息
-  copilotStore.addMessage('assistant', '正在分析用户行为数据，识别动作模式...')
+  // 触发副驾分析
+  copilotStore.triggerAIAnalysis(5)
 
-  // 本地分析动画
+  // 左侧进度条动画
   isAnalyzing.value = true
   analyzeProgress.value = 0
 
@@ -227,37 +223,19 @@ function handleAIAnalyze() {
     if (analyzeProgress.value >= 100) {
       clearInterval(interval)
       isAnalyzing.value = false
-
-      // AI 分析完成消息
-      copilotStore.addMessage('assistant', '动作识别完成！发现以下动作类型：\n\n1. 登录/登出事件\n2. 订单创建/支付事件\n3. 产品浏览/收藏事件\n4. 投诉提交/处理事件\n\n典型路径：\n1. 浏览 → 收藏 → 购买\n2. 登录 → 浏览 → 搜索 → 购买\n3. 投诉 → 处理 → 评价\n\n是否需要查看详情？')
-      // 显示建议卡片
-      copilotStore.suggestions = [
-        {
-          id: 'step5-ai-1',
-          type: 'summary',
-          title: '动作类型识别',
-          description: '已完成动作类型识别，发现以下动作模式',
-          content: '识别结果：\n- 用户登录/登出 (登录事件)\n- 订单创建/支付 (交易事件)\n- 产品浏览/收藏 (浏览事件)\n- 投诉提交/处理 (服务事件)',
-          stats: {
-            '登录事件': 456,
-            '交易事件': 523,
-            '浏览事件': 187,
-            '服务事件': 89
-          },
-          actionLabel: '查看详情'
-        },
-        {
-          id: 'step5-ai-2',
-          type: 'summary',
-          title: '动作序列分析',
-          description: '基于用户行为序列，发现以下典型路径',
-          content: '典型路径：\n1. 浏览 → 收藏 → 购买\n2. 登录 → 浏览 → 搜索 → 购买\n3. 投诉 → 处理 → 评价\n\n建议：为"浏览→购买"路径优化转化率',
-          actionLabel: '采纳建议'
-        }
-      ]
     }
   }, 200)
 }
+
+// 监听重新识别动作
+watch(
+  () => copilotStore.reidentifyAction,
+  (action) => {
+    if (action === 'reextract-actions') {
+      handleAIAnalyze()
+    }
+  }
+)
 
 function handleAdjust() {
   // 调整逻辑

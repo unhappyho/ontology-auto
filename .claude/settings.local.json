@@ -24,7 +24,10 @@
       "WebFetch(domain:minimax-algeng-chat-tts.oss-cn-wulanchabu.aliyuncs.com)",
       "Bash(find /e/claude_code -type f -name \"*.vue\" 2>/dev/null | head -20)",
       "Bash(ls -la /e/claude_code/*.json 2>/dev/null || ls -la E:/claude_code/*.json 2>/dev/null || echo \"No JSON files found in root\")",
-      "Bash(npx vue-tsc:*)"
+      "Bash(npx vue-tsc:*)",
+      "Bash(find:*)",
+      "Bash(git checkout:*)",
+      "Bash(curl:*)"
     ]
   }
 }

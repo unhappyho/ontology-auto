@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   AppstoreOutlined,
   LeftOutlined,
@@ -134,44 +134,18 @@ function handleBatchDeleteEntities() {
 
 // AI 实体提取
 function handleAIExtract() {
-  // 打开 AI 助手面板
-  copilotStore.openPanel()
-  // 设置当前步骤上下文
-  copilotStore.setStepContext(2)
-  // 添加提取消息
-  copilotStore.addMessage('assistant', '正在分析数据表结构，提取实体信息...')
-
-  // 模拟 AI 分析过程
-  setTimeout(() => {
-    copilotStore.addMessage('assistant', '实体提取完成！发现以下实体类型：\n\n1. 用户 (User) - 5个属性\n2. 订单 (Order) - 8个属性\n3. 产品 (Product) - 6个属性\n4. 合同 (Contract) - 7个属性\n5. 投诉 (Complaint) - 4个属性\n\n是否需要查看详情？')
-    // 显示建议卡片
-    copilotStore.suggestions = [
-      {
-        id: 'step2-ai-1',
-        type: 'entity',
-        title: '识别统计',
-        description: '已完成实体识别，发现以下实体类型',
-        content: '实体类型：5种\n实体总数：1,284个\n属性字段：368个',
-        stats: {
-          '用户实体': 456,
-          '订单实体': 523,
-          '产品实体': 187,
-          '合同实体': 89,
-          '投诉实体': 29
-        },
-        actionLabel: '查看详情'
-      },
-      {
-        id: 'step2-ai-2',
-        type: 'entity',
-        title: '新增实体建议',
-        description: '根据数据特征，发现可提取的新实体类型',
-        content: '建议新增实体类型：\n- 地址位置（从用户地址提取）\n- 产品分类（从产品目录提取）\n- 订单状态（从订单流水提取）',
-        actionLabel: '采纳建议'
-      }
-    ]
-  }, 1500)
+  copilotStore.triggerAIAnalysis(2)
 }
+
+// 监听重新识别动作
+watch(
+  () => copilotStore.reidentifyAction,
+  (action) => {
+    if (action === 'reextract-entities') {
+      ontologyStore.triggerReextractAnimation()
+    }
+  }
+)
 </script>
 
 <style scoped>

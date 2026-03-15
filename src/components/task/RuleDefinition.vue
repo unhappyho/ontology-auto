@@ -112,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   FolderOutlined,
   AimOutlined,
@@ -173,14 +173,10 @@ const confirmedCount = computed(() => {
 })
 
 function handleAIAnalyze() {
-  // 打开 AI 助手面板
-  copilotStore.openPanel()
-  // 设置当前步骤上下文
-  copilotStore.setStepContext(4)
-  // 添加分析消息
-  copilotStore.addMessage('assistant', '正在分析本体数据，识别业务规则...')
+  // 触发副驾分析
+  copilotStore.triggerAIAnalysis(4)
 
-  // 本地分析动画
+  // 左侧进度条动画
   isAnalyzing.value = true
   analyzeProgress.value = 0
 
@@ -189,54 +185,19 @@ function handleAIAnalyze() {
     if (analyzeProgress.value >= 100) {
       clearInterval(interval)
       isAnalyzing.value = false
-
-      // AI 分析完成消息
-      copilotStore.addMessage('assistant', '规则识别完成！发现以下业务规则：\n\n1. 派生关系规则：3条\n2. 动态分类规则：5条\n3. 事理传导规则：2条\n\n是否需要查看详情？')
-      // 显示建议卡片
-      copilotStore.suggestions = [
-        {
-          id: 'step4-ai-1',
-          type: 'relation',
-          title: '派生关系规则',
-          description: '从基础关系推导出新关系',
-          content: '已识别派生关系规则：\n\n1. 用户累计消费金额 = SUM(订单.金额)\n2. 客户等级 = IF(累计消费>10000,VIP,普通)\n3. 订单利润率 = (订单.金额-成本)/成本*100%',
-          stats: {
-            '派生规则': 3,
-            '用户属性': 5,
-            '订单属性': 8
-          },
-          actionLabel: '查看详情'
-        },
-        {
-          id: 'step4-ai-2',
-          type: 'relation',
-          title: '动态分类规则',
-          description: '根据条件动态归类到概念',
-          content: '已识别动态分类规则：\n\n1. 高价值客户：累计消费>10000\n2. 活跃用户：30天内有登录\n3. 流失风险：60天未登录\n4. 潜在客户：注册但未消费\n5. 投诉用户：存在未处理投诉',
-          stats: {
-            '分类规则': 5,
-            '高价值客户': 128,
-            '活跃用户': 856
-          },
-          actionLabel: '查看详情'
-        },
-        {
-          id: 'step4-ai-3',
-          type: 'relation',
-          title: '事理传导规则',
-          description: '事件因果或顺承推理',
-          content: '已识别事理传导规则：\n\n1. 投诉处理时效：响应时间<24小时\n2. 订单完成链路：下单→支付→发货→签收\n3. 用户生命周期：注册→首单→复购→留存',
-          stats: {
-            '事理规则': 2,
-            '待处理': 12,
-            '已完成': 456
-          },
-          actionLabel: '测试规则'
-        }
-      ]
     }
   }, 200)
 }
+
+// 监听重新识别动作
+watch(
+  () => copilotStore.reidentifyAction,
+  (action) => {
+    if (action === 'reextract-rules') {
+      handleAIAnalyze()
+    }
+  }
+)
 
 function handleAdjust() {
   // 调整逻辑

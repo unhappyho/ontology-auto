@@ -1,11 +1,11 @@
 <template>
   <div class="task-view">
-    <TopBar />
+    <!-- 左侧主内容区 -->
+    <div class="task-view-left">
+      <TopBar />
 
-    <!-- 主体内容区 -->
-    <div class="task-main" :class="{ 'with-copilot': copilotStore.visible }">
       <!-- 步骤内容 -->
-      <div class="task-content">
+      <div class="task-main">
         <!-- 步骤1: 本体数据采集 -->
         <div v-if="currentStep === 1" class="workspace-container active">
           <StepForm v-if="viewMode === 'form'" :key="'form'" />
@@ -118,10 +118,10 @@
           </div>
         </div>
       </div>
-
-      <!-- AI 助手面板（右侧并排） -->
-      <AICopilotPanel v-if="copilotStore.visible" />
     </div>
+
+    <!-- AI 副驾面板（右侧，全高并排） -->
+    <AICopilotPanel v-if="copilotStore.visible" />
 
     <!-- 模态框 -->
     <IdeModal />
@@ -187,6 +187,10 @@ const viewMode = computed(() => uiStore.viewMode)
 
 function goToStep(stepId: number) {
   taskStore.switchStep(stepId)
+  // 切换到步骤3/4/5时自动触发副驾AI分析
+  if (stepId >= 3 && stepId <= 5) {
+    copilotStore.triggerAIAnalysis(stepId)
+  }
 }
 
 function handleComplete() {
@@ -249,27 +253,24 @@ watch(currentStep, (newStep) => {
 .task-view {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   overflow: hidden;
   background: var(--bg-body);
 }
 
-/* 任务主体布局 - 包含内容和 AI 面板 */
-.task-main {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-
-.task-main.with-copilot .task-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.task-content {
+/* 左侧主内容区（含 TopBar + 步骤内容） */
+.task-view-left {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* 任务主体布局 */
+.task-main {
+  flex: 1;
+  display: flex;
   overflow: hidden;
 }
 

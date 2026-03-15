@@ -197,6 +197,7 @@
             :columns="tableColumns"
             :data-source="filteredTables"
             :pagination="false"
+            :loading="isTableLoading"
             size="small"
             row-key="name"
           >
@@ -256,7 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   CodeOutlined,
@@ -316,6 +317,14 @@ const schedulerTasks = ref([
 ])
 
 const searchKeyword = ref('')
+const isTableLoading = ref(false)
+
+function triggerTableLoading() {
+  isTableLoading.value = true
+  setTimeout(() => {
+    isTableLoading.value = false
+  }, 2000)
+}
 
 const tableColumns = [
   { key: 'checkbox', width: 36 },
@@ -371,29 +380,19 @@ function handleBack() {
 
 // AI 智能推荐
 function handleAIRecommend() {
-  // 打开 AI 助手面板
-  copilotStore.openPanel()
-  // 设置当前步骤上下文
-  copilotStore.setStepContext(1)
-  // 添加推荐消息
-  copilotStore.addMessage('assistant', '正在分析数据源特征，请稍候...')
-
-  // 模拟 AI 分析过程
-  setTimeout(() => {
-    copilotStore.addMessage('assistant', '基于您的数据源，我推荐以下配置方案：\n\n1. 数据格式：结构化数据\n2. 采集项：建议选择"逻辑模型"，可获取完整的表结构信息\n3. 推荐数据源：CRM 核心业务库 (MySQL)，该库包含完整的用户、订单、产品数据\n\n是否采纳此推荐方案？')
-    // 显示建议卡片
-    copilotStore.suggestions = [
-      {
-        id: 'step1-ai-1',
-        type: 'table',
-        title: '推荐表结构',
-        description: '基于CRM业务场景，推荐以下核心表结构',
-        content: 't_user_main (用户主表)\nt_order_flow (订单流水)\nt_product_catalog (产品目录)\nt_contract_info (合同信息)\nt_complaint_record (投诉记录)',
-        actionLabel: '采纳建议'
-      }
-    ]
-  }, 1500)
+  copilotStore.triggerAIAnalysis(1)
+  triggerTableLoading()
 }
+
+// 监听重新识别动作
+watch(
+  () => copilotStore.reidentifyAction,
+  (action) => {
+    if (action === 'reextract-tables') {
+      triggerTableLoading()
+    }
+  }
+)
 
 function handleNext() {
   // 如果选择了离线开发，需要等待调度任务完成才能进入下一步
@@ -401,6 +400,7 @@ function handleNext() {
     return
   }
   taskStore.switchStep(2)
+  copilotStore.triggerAIAnalysis(2)
 }
 
 // 判断下一步按钮是否可用
