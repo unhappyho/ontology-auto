@@ -35,33 +35,104 @@
         :key="msg.id"
         :class="['message-item', msg.role]"
       >
-        <!-- type=thinking：三点跳动 + 深度思考步骤 -->
+        <!-- type=thinking：流式思考 + 回复文字 + 卡片（同一气泡） -->
         <template v-if="msg.type === 'thinking'">
           <div class="msg-avatar"><RobotOutlined /></div>
           <div class="thinking-wrapper">
-            <div class="msg-bubble thinking">
-              <span class="dot"></span>
-              <span class="dot"></span>
-              <span class="dot"></span>
-              <span class="thinking-label">深度思考中</span>
-            </div>
-            <div v-if="msg.thinkingSteps?.length" class="thinking-steps">
-              <div
-                v-for="(step, i) in msg.thinkingSteps"
-                :key="i"
-                class="thinking-step"
-                :style="{ animationDelay: `${i * 0.35}s` }"
-              >
-                <span class="step-dot"></span>{{ step }}
+            <!-- 1. 思考状态头部 -->
+            <div class="thinking-header">
+              <div class="thinking-status">
+                <span v-if="msg.thinkingStatus === 'streaming'" class="status-dot streaming"></span>
+                <CheckCircleOutlined v-else class="status-dot completed" />
+                <span class="status-text">
+                  {{ msg.thinkingStatus === 'streaming' ? '深度思考中' : '思考完成' }}
+                </span>
               </div>
+              <!-- 折叠/展开按钮（仅在完成时显示） -->
+              <button
+                v-if="msg.thinkingStatus === 'completed'"
+                class="collapse-toggle"
+                @click="toggleThinking(msg.id)"
+              >
+                <span>{{ msg.thinkingCollapsed ? '展开' : '收起' }}</span>
+                <DownOutlined :class="['toggle-icon', { collapsed: msg.thinkingCollapsed }]" />
+              </button>
             </div>
+
+            <!-- 2. 思考内容区域（可折叠） -->
+            <transition name="thinking-collapse">
+              <div
+                v-show="!msg.thinkingCollapsed || msg.thinkingStatus === 'streaming'"
+                class="thinking-content"
+              >
+                <div class="thinking-text">
+                  {{ msg.thinkingContent }}
+                  <span v-if="msg.thinkingStatus === 'streaming'" class="typing-cursor"></span>
+                </div>
+              </div>
+            </transition>
+
+            <!-- 折叠时的简要提示 -->
+            <div
+              v-if="msg.thinkingStatus === 'completed' && msg.thinkingCollapsed"
+              class="thinking-summary"
+            >
+              点击展开查看详细思考过程
+            </div>
+
+            <!-- 3. 回复文字（思考完成后显示） -->
+            <div
+              v-if="msg.thinkingStatus === 'completed' && msg.content"
+              class="msg-bubble response-text"
+            >
+              {{ msg.content }}
+            </div>
+
+            <!-- 4. 卡片（有卡片时显示） -->
+            <template v-if="msg.thinkingStatus === 'completed' && msg.cards?.length">
+              <div class="card-intro-text">以下是我的分析建议，请确认是否采纳：</div>
+              <transition-group name="card-fade" tag="div" class="inline-cards">
+                <CopilotCard
+                  v-for="card in msg.cards.filter((c: SuggestionCard) => !c.dismissed)"
+                  :key="card.id"
+                  :card="card"
+                  @accept="acceptCard(msg.id, card.id)"
+                  @dismiss="dismissCard(msg.id, card.id)"
+                  @reidentify="handleReidentify(card)"
+                />
+              </transition-group>
+            </template>
           </div>
         </template>
 
         <!-- type=text：文字气泡 -->
         <template v-else-if="msg.type === 'text'">
           <div v-if="msg.role === 'assistant'" class="msg-avatar"><RobotOutlined /></div>
-          <div class="msg-bubble">{{ msg.content }}</div>
+          <div class="text-wrapper">
+            <!-- 如果有思考内容，显示折叠区域 -->
+            <div v-if="msg.thinkingContent" class="thinking-header compact">
+              <div class="thinking-status">
+                <CheckCircleOutlined class="status-dot completed" />
+                <span class="status-text">思考过程</span>
+              </div>
+              <button
+                class="collapse-toggle"
+                @click="toggleThinking(msg.id)"
+              >
+                <span>{{ msg.thinkingCollapsed ? '展开' : '收起' }}</span>
+                <DownOutlined :class="['toggle-icon', { collapsed: msg.thinkingCollapsed }]" />
+              </button>
+            </div>
+            <transition name="thinking-collapse">
+              <div
+                v-if="msg.thinkingContent && !msg.thinkingCollapsed"
+                class="thinking-content compact"
+              >
+                <div class="thinking-text">{{ msg.thinkingContent }}</div>
+              </div>
+            </transition>
+            <div class="msg-bubble">{{ msg.content }}</div>
+          </div>
           <div v-if="msg.role === 'user'" class="msg-avatar user-avatar"><UserOutlined /></div>
         </template>
 
@@ -114,7 +185,9 @@ import {
   RobotOutlined,
   UserOutlined,
   SendOutlined,
-  CloseOutlined
+  CloseOutlined,
+  CheckCircleOutlined,
+  DownOutlined
 } from '@ant-design/icons-vue'
 import { useCopilotStore } from '@/stores'
 import CopilotCard from './CopilotCard.vue'
@@ -155,6 +228,15 @@ watch(
   }
 )
 
+// 思考内容变化时滚动（流式输出）
+watch(
+  () => messages.value.map(m => m.thinkingContent || '').join(''),
+  async () => {
+    await nextTick()
+    scrollToBottom()
+  }
+)
+
 function scrollToBottom() {
   if (messagesRef.value) {
     messagesRef.value.scrollTop = messagesRef.value.scrollHeight
@@ -169,16 +251,37 @@ function handleSend() {
   inputMessage.value = ''
   isUserThinking.value = true
 
-  // 模拟 AI 回复
-  const thinkingId = copilotStore.addThinkingMessage(GENERIC_THINKING_STEPS)
-  setTimeout(() => {
-    isUserThinking.value = false
-    copilotStore.resolveThinkingToCards(
-      thinkingId,
-      '好的，我已收到你的问题。请稍等，让我来分析一下当前步骤的情况...',
-      []
-    )
-  }, 1200)
+  // 使用流式输出
+  const thinkingId = copilotStore.startThinkingMessage()
+  const steps = GENERIC_THINKING_STEPS
+  let stepIndex = 0
+  let charIndex = 0
+
+  const streamInterval = setInterval(() => {
+    if (stepIndex >= steps.length) {
+      clearInterval(streamInterval)
+      copilotStore.completeThinking(thinkingId, '思考完成')
+      isUserThinking.value = false
+      setTimeout(() => {
+        copilotStore.resolveThinkingToCards(
+          thinkingId,
+          '好的，我已收到你的问题。请稍等，让我来分析一下当前步骤的情况...',
+          []
+        )
+      }, 300)
+      return
+    }
+
+    const currentStep = steps[stepIndex]
+    if (charIndex < currentStep.length) {
+      copilotStore.appendThinkingContent(thinkingId, currentStep[charIndex])
+      charIndex++
+    } else {
+      copilotStore.appendThinkingContent(thinkingId, '\n')
+      stepIndex++
+      charIndex = 0
+    }
+  }, 30)
 }
 
 function acceptCard(msgId: string, cardId: string) {
@@ -198,6 +301,11 @@ function handleReidentify(card: SuggestionCard) {
 
 function handleClose() {
   copilotStore.closePanel()
+}
+
+// 切换思考折叠状态
+function toggleThinking(msgId: string) {
+  copilotStore.toggleThinkingCollapsed(msgId)
 }
 </script>
 
@@ -336,6 +444,7 @@ function handleClose() {
 
 .message-item.user {
   flex-direction: row-reverse;
+  justify-content: flex-start;
 }
 
 .msg-avatar {
@@ -379,91 +488,202 @@ function handleClose() {
   background: var(--copilot-msg-user-bg);
   color: var(--copilot-text);
   border-radius: 10px 0 10px 10px;
-}
-
-/* AI 思考动画 */
-.msg-bubble.thinking {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 12px 16px;
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #bfbfbf;
-  animation: bounce 1.2s infinite;
-}
-
-.dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes bounce {
-  0%, 60%, 100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-5px);
-  }
+  min-width: 60px;
+  max-width: 240px;
 }
 
 /* 深度思考包裹器 */
 .thinking-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   max-width: calc(100% - 44px);
+  min-width: 0;
 }
 
-.thinking-label {
-  font-size: 11px;
-  color: #9b59b6;
-  margin-left: 6px;
+/* 思考状态头部 */
+.thinking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--copilot-msg-ai-bg);
+  border: 1px solid var(--copilot-border);
+  border-left: 3px solid var(--copilot-primary);
+  border-radius: 0 10px 10px 10px;
+}
+
+.thinking-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.streaming {
+  background: #722ed1;
+  animation: pulse 1.2s infinite;
+}
+
+.status-dot.completed {
+  color: #52c41a;
+  font-size: 14px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.status-text {
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.5px;
+  color: #722ed1;
 }
 
-/* 深度思考步骤列表 */
-.thinking-steps {
+/* 折叠/展开按钮 */
+.collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #8c8c8c;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.collapse-toggle:hover {
+  background: #e8e8e8;
+  color: #595959;
+}
+
+.toggle-icon {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.toggle-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* 思考内容区域 */
+.thinking-content {
   background: #f9f0ff;
   border: 1px solid #d3adf7;
   border-left: 3px solid #722ed1;
   border-radius: 0 8px 8px 8px;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  padding: 10px 12px;
+  overflow: hidden;
 }
 
-.thinking-step {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.thinking-text {
   font-size: 12px;
   color: #531dab;
-  font-style: italic;
-  opacity: 0;
-  animation: step-appear 0.4s ease forwards;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.step-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+/* 打字光标动画 */
+.typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
   background: #722ed1;
-  flex-shrink: 0;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 0.8s infinite;
 }
 
-@keyframes step-appear {
-  from { opacity: 0; transform: translateX(-6px); }
-  to   { opacity: 1; transform: translateX(0); }
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* 折叠时简要提示 */
+.thinking-summary {
+  font-size: 11px;
+  color: #8c8c8c;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* 回复文字样式 */
+.response-text {
+  margin-top: 4px;
+}
+
+/* 卡片介绍文字 */
+.card-intro-text {
+  font-size: 12px;
+  color: #595959;
+  margin-top: 8px;
+  padding: 0 4px;
+}
+
+/* 折叠过渡动画 */
+.thinking-collapse-enter-active,
+.thinking-collapse-leave-active {
+  transition: all 0.25s ease;
+  max-height: 500px;
+  overflow: hidden;
+}
+
+.thinking-collapse-enter-from,
+.thinking-collapse-leave-to {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+}
+
+/* text 消息中的思考内容紧凑样式 */
+.text-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: calc(100% - 44px);
+  min-width: 0;
+}
+
+.thinking-header.compact {
+  padding: 6px 10px;
+}
+
+.thinking-content.compact {
+  padding: 8px 10px;
+}
+
+/* text 消息中的思考内容紧凑样式 */
+.text-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: calc(100% - 44px);
+  min-width: 0;
+}
+
+.thinking-header.compact {
+  padding: 6px 10px;
+}
+
+.thinking-content.compact {
+  padding: 8px 10px;
 }
 
 /* card-group 布局 */
