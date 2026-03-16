@@ -332,7 +332,20 @@ function toggleThinking(msgId: string) {
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
-  box-shadow: inset 4px 0 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+/* 左侧渐变阴影条 - 视觉分离效果 */
+.copilot-panel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.1), transparent);
+  pointer-events: none;
+  z-index: 10;
 }
 
 /* ---- Header ---- */
