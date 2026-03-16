@@ -332,6 +332,7 @@ function toggleThinking(msgId: string) {
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
+  box-shadow: inset 4px 0 8px rgba(0, 0, 0, 0.08);
 }
 
 /* ---- Header ---- */
