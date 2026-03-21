@@ -68,10 +68,10 @@
           </div>
         </div>
 
-        <!-- 步骤4: 规则识别 -->
+        <!-- 步骤4: 实体逻辑 -->
         <div v-if="currentStep === 4" class="workspace-container active step4-workspace">
           <div class="step-page-wrap">
-            <RuleDefinition />
+            <EntityLogic />
             <div class="step-page-footer">
               <div class="footer-left">
                 <InfoCircleOutlined />
@@ -86,17 +86,17 @@
                 保存
               </a-button>
               <a-button type="primary" :disabled="isTransitioning" @click="goToStep(5)">
-                下一步：动作识别
+                下一步：业务规则
                 <ArrowRightOutlined />
               </a-button>
             </div>
           </div>
         </div>
 
-        <!-- 步骤5: 动作识别 -->
+        <!-- 步骤5: 业务规则 -->
         <div v-if="currentStep === 5" class="workspace-container active step5-workspace">
           <div class="step-page-wrap">
-            <ActionDefinition />
+            <BusinessRules />
             <div class="step-page-footer">
               <div class="footer-left">
                 <InfoCircleOutlined />
@@ -163,8 +163,8 @@ import FlowCanvas from '@/components/canvas/FlowCanvas.vue'
 import OntologyTree from '@/components/ontology/OntologyTree.vue'
 import EntityList from '@/components/ontology/EntityList.vue'
 import RelationList from '@/components/ontology/RelationList.vue'
-import RuleDefinition from '@/components/task/RuleDefinition.vue'
-import ActionDefinition from '@/components/task/ActionDefinition.vue'
+import EntityLogic from '@/components/task/EntityLogic.vue'
+import BusinessRules from '@/components/task/BusinessRules.vue'
 import IdeModal from '@/components/modals/IdeModal.vue'
 import SqlModal from '@/components/modals/SqlModal.vue'
 import FieldModal from '@/components/modals/FieldModal.vue'
@@ -198,8 +198,8 @@ const transitionStepName = ref('')
 
 const STEP_NAMES: Record<number, string> = {
   3: '关联构建',
-  4: '规则识别',
-  5: '动作识别'
+  4: '实体逻辑',
+  5: '业务规则'
 }
 
 function goToStep(stepId: number) {
@@ -324,9 +324,9 @@ watch(currentStep, (newStep) => {
 }
 
 .step4-workspace .step-page-wrap > :deep(.rule-definition),
-.step4-workspace .step-page-wrap > :deep(.action-definition),
+.step4-workspace .step-page-wrap > :deep(.entity-logic),
 .step5-workspace .step-page-wrap > :deep(.rule-definition),
-.step5-workspace .step-page-wrap > :deep(.action-definition) {
+.step5-workspace .step-page-wrap > :deep(.business-rules) {
   flex: 1;
   min-height: 0;
 }

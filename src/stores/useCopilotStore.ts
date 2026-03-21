@@ -4,14 +4,21 @@ import { ref } from 'vue'
 // 消息类型
 export type MessageType = 'text' | 'thinking' | 'card-group'
 
+// 思考状态
+export type ThinkingStatus = 'streaming' | 'completed'
+
 export interface CopilotMessage {
   id: string
   role: 'user' | 'assistant'
   type: MessageType
   content: string
   cards?: SuggestionCard[]
-  thinkingSteps?: string[]
+  thinkingSteps?: string[]  // 保留兼容旧版
   timestamp: number
+  // 流式思考相关字段
+  thinkingContent?: string
+  thinkingStatus?: ThinkingStatus
+  thinkingCollapsed?: boolean
 }
 
 // 建议卡片类型
@@ -70,7 +77,7 @@ export const GENERIC_THINKING_STEPS = [
 
 // 各步骤 AI 分析完成后的文字说明
 const STEP_ANALYSIS_TEXTS: Record<number, string> = {
-  1: '基于您的数据源，我推荐以下配置方案：数据格式建议选择结构化数据，采集项建议选择"逻辑模型"以获取完整的表结构信息，推荐数据源为 CRM 核心业务库 (MySQL)，该库包含完整的用户、订单、产品数据。',
+  1: '数据采集分析完成！推荐采集项为「逻辑模型」，数据源为 CRM 核心业务库 (MySQL)。已识别 8 张核心业务表，包含用户、订单、产品等主题域数据。',
   2: '实体提取完成！发现用户、订单、产品、合同、投诉 5 种实体类型，共 1,284 个实体，368 个属性字段。同时发现可提取的新实体类型建议。',
   3: '关联构建完成！基于已识别实体，推断出主要关联关系，并发现潜在的跨域关联，可进一步丰富知识图谱。',
   4: '规则识别完成！发现派生关系规则 3 条、动态分类规则 5 条、事理传导规则 2 条，请确认并采纳。',
@@ -82,19 +89,28 @@ const STEP_SUGGESTIONS: Record<number, Omit<SuggestionCard, 'accepted' | 'dismis
   1: [
     {
       id: 's1-1',
-      type: 'table',
-      title: '推荐表结构',
-      description: '基于CRM业务场景，推荐以下核心表结构',
-      content: 't_user_main (用户主表)\nt_order_flow (订单流水)\nt_product_catalog (产品目录)\nt_contract_info (合同信息)\nt_complaint_record (投诉记录)',
-      action: 'addTable',
+      type: 'summary',
+      title: '基础配置规则',
+      description: '推荐采集项与采集数据源配置',
+      content: '采集项建议：\n- 采集类型：逻辑模型\n- 数据格式：结构化数据\n- 采集粒度：表级别\n\n推荐数据源：\n- CRM 核心业务库 (MySQL)\n  主机：crm-db.internal:3306\n  数据库：crm_production',
+      stats: {
+        '推荐采集项': '逻辑模型',
+        '数据格式': '结构化',
+        '数据源数量': 1
+      },
+      action: 'applyRule',
       reidentifyAction: 'reextract-tables'
     },
     {
       id: 's1-2',
       type: 'table',
-      title: '关联表补充',
-      description: '建议补充以下关联表以完善数据链路',
-      content: 't_user_address (用户地址)\nt_order_item (订单明细)\nt_product_category (产品分类)',
+      title: '采集范围',
+      description: '推荐采集的表列表（含表名与表编码）',
+      content: '用户主表 (t_user_main)\n订单流水表 (t_order_flow)\n产品目录表 (t_product_catalog)\n合同信息表 (t_contract_info)\n投诉记录表 (t_complaint_record)\n用户地址表 (t_user_address)\n订单明细表 (t_order_item)\n产品分类表 (t_product_category)',
+      stats: {
+        '推荐表数量': 8,
+        '核心主题域': 5
+      },
       action: 'addTable',
       reidentifyAction: 'reextract-tables'
     }
@@ -273,36 +289,71 @@ export const useCopilotStore = defineStore('copilot', () => {
       type: 'thinking',
       content: '',
       thinkingSteps: steps,
+      thinkingContent: steps ? steps.join('\n') : '',
+      thinkingStatus: 'streaming',
+      thinkingCollapsed: false,
       timestamp: Date.now()
     })
     return id
   }
 
-  // 将 thinking 消息升级为 card-group
-  function resolveThinkingToCards(msgId: string, text: string, cards: SuggestionCard[]) {
-    // 先插入文字气泡（将 thinking 替换为 text）
-    const idx = messages.value.findIndex(m => m.id === msgId)
-    if (idx !== -1) {
-      messages.value[idx] = {
-        id: messages.value[idx].id,
-        role: 'assistant',
-        type: 'text',
-        content: text,
-        timestamp: messages.value[idx].timestamp
+  // 开始思考消息（流式版本）
+  function startThinkingMessage(): string {
+    const id = genMsgId()
+    messages.value.push({
+      id,
+      role: 'assistant',
+      type: 'thinking',
+      content: '',
+      thinkingContent: '',
+      thinkingStatus: 'streaming',
+      thinkingCollapsed: false,
+      timestamp: Date.now()
+    })
+    return id
+  }
+
+  // 追加思考内容（流式输出）
+  function appendThinkingContent(msgId: string, chunk: string): void {
+    const msg = messages.value.find(m => m.id === msgId)
+    if (msg && msg.type === 'thinking') {
+      msg.thinkingContent = (msg.thinkingContent || '') + chunk
+    }
+  }
+
+  // 完成思考（状态改为 completed，自动折叠）
+  function completeThinking(msgId: string, summaryText?: string): void {
+    const msg = messages.value.find(m => m.id === msgId)
+    if (msg && msg.type === 'thinking') {
+      msg.thinkingStatus = 'completed'
+      msg.thinkingCollapsed = true
+      if (summaryText) {
+        msg.content = summaryText
       }
     }
-    // 追加 card-group 消息
-    if (cards.length > 0) {
-      messages.value.push({
-        id: genMsgId(),
-        role: 'assistant',
-        type: 'card-group',
-        content: '以下是我的分析建议，请确认是否采纳：',
-        cards,
-        timestamp: Date.now()
-      })
+  }
+
+  // 切换思考内容折叠状态
+  function toggleThinkingCollapsed(msgId: string): void {
+    const msg = messages.value.find(m => m.id === msgId)
+    // 只检查 thinkingStatus，不限制 type（因为 resolveThinkingToCards 后 type 可能变为 text）
+    if (msg && msg.thinkingStatus === 'completed') {
+      msg.thinkingCollapsed = !msg.thinkingCollapsed
     }
-    hasNewSuggestions.value = true
+  }
+
+  // 将 thinking 消息升级为包含文字和卡片（不再改变类型）
+  function resolveThinkingToCards(msgId: string, text: string, cards: SuggestionCard[]) {
+    const msg = messages.value.find(m => m.id === msgId)
+    if (msg) {
+      // 直接在原消息上追加 content 和 cards，不改变 type
+      msg.content = text
+      msg.cards = cards
+      // 保持 thinkingStatus 为 completed，thinkingCollapsed 为 true
+    }
+    if (cards.length > 0) {
+      hasNewSuggestions.value = true
+    }
   }
 
   // 采纳消息中的某张卡片
@@ -334,20 +385,44 @@ export const useCopilotStore = defineStore('copilot', () => {
     }, 100)
   }
 
-  // 统一的 AI 分析触发入口
+  // 统一的 AI 分析触发入口（流式版本）
   function triggerAIAnalysis(stepId: number) {
     currentStepId.value = stepId
     openPanel()
-    const thinkingMsgId = addThinkingMessage(STEP_THINKING_STEPS[stepId])
-    setTimeout(() => {
-      const text = STEP_ANALYSIS_TEXTS[stepId] || 'AI 分析完成。'
-      const cards: SuggestionCard[] = (STEP_SUGGESTIONS[stepId] || []).map(s => ({
-        ...s,
-        accepted: false,
-        dismissed: false
-      }))
-      resolveThinkingToCards(thinkingMsgId, text, cards)
-    }, 1500)
+    const thinkingMsgId = startThinkingMessage()
+
+    // 模拟流式输出
+    const steps = STEP_THINKING_STEPS[stepId] || GENERIC_THINKING_STEPS
+    let stepIndex = 0
+    let charIndex = 0
+
+    const streamInterval = setInterval(() => {
+      if (stepIndex >= steps.length) {
+        clearInterval(streamInterval)
+        completeThinking(thinkingMsgId, '思考完成')
+
+        setTimeout(() => {
+          const text = STEP_ANALYSIS_TEXTS[stepId] || 'AI 分析完成。'
+          const cards: SuggestionCard[] = (STEP_SUGGESTIONS[stepId] || []).map(s => ({
+            ...s,
+            accepted: false,
+            dismissed: false
+          }))
+          resolveThinkingToCards(thinkingMsgId, text, cards)
+        }, 300)
+        return
+      }
+
+      const currentStep = steps[stepIndex]
+      if (charIndex < currentStep.length) {
+        appendThinkingContent(thinkingMsgId, currentStep[charIndex])
+        charIndex++
+      } else {
+        appendThinkingContent(thinkingMsgId, '\n')
+        stepIndex++
+        charIndex = 0
+      }
+    }, 30)
   }
 
   // 清除步骤上下文（路由离开时调用）
@@ -370,9 +445,14 @@ export const useCopilotStore = defineStore('copilot', () => {
     // 消息操作
     addMessage,
     clearMessages,
-    // thinking / card-group
+    // thinking 消息管理（流式）
     addThinkingMessage,
+    startThinkingMessage,
+    appendThinkingContent,
+    completeThinking,
+    toggleThinkingCollapsed,
     resolveThinkingToCards,
+    // 卡片操作
     acceptCardInMessage,
     dismissCardInMessage,
     // 重新识别

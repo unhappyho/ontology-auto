@@ -177,6 +177,123 @@
           </div>
         </div>
 
+        <!-- 附件上传 -->
+        <div class="form-section-card">
+          <div class="form-section-title">
+            <span class="step-badge">2</span>
+            附件上传
+            <span class="section-optional">可选</span>
+          </div>
+          <div class="attachment-desc">上传参考文档，AI 将在后续步骤中自动分析引用</div>
+
+          <div class="attachment-columns">
+            <!-- 加工脚本文件 -->
+            <div class="attachment-col">
+              <div class="attachment-col-header">
+                <CodeOutlined class="attachment-col-icon" style="color: #722ED1;" />
+                <span class="attachment-col-title">加工脚本文件</span>
+                <span class="attachment-col-count">{{ scriptFiles.length }}/{{ MAX_FILES }}</span>
+              </div>
+              <div
+                :class="['upload-zone', { 'upload-zone--disabled': scriptFiles.length >= MAX_FILES }]"
+                @click="scriptFiles.length < MAX_FILES && triggerUpload('script')"
+                @dragover.prevent
+                @drop.prevent="handleDrop($event, 'script')"
+              >
+                <input
+                  ref="scriptInputRef"
+                  type="file"
+                  multiple
+                  accept=".py,.sql,.sh,.js,.ts"
+                  style="display:none"
+                  @change="handleFileChange($event, 'script')"
+                />
+                <CloudUploadOutlined class="upload-zone-icon" />
+                <div class="upload-zone-text">点击上传或拖入文件</div>
+                <div class="upload-zone-formats">.py .sql .sh .js .ts</div>
+              </div>
+              <div v-if="scriptFiles.length > 0" class="file-list">
+                <div v-for="file in scriptFiles" :key="file.uid" class="file-item">
+                  <FileOutlined class="file-item-icon" style="color: #722ED1;" />
+                  <span class="file-item-name">{{ file.name }}</span>
+                  <span class="file-item-size">{{ formatSize(file.size) }}</span>
+                  <DeleteOutlined class="file-item-delete" @click="removeFile('script', file.uid)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 规则文档 -->
+            <div class="attachment-col">
+              <div class="attachment-col-header">
+                <FileTextOutlined class="attachment-col-icon" style="color: #1677FF;" />
+                <span class="attachment-col-title">规则文档</span>
+                <span class="attachment-col-count">{{ ruleFiles.length }}/{{ MAX_FILES }}</span>
+              </div>
+              <div
+                :class="['upload-zone', { 'upload-zone--disabled': ruleFiles.length >= MAX_FILES }]"
+                @click="ruleFiles.length < MAX_FILES && triggerUpload('rule')"
+                @dragover.prevent
+                @drop.prevent="handleDrop($event, 'rule')"
+              >
+                <input
+                  ref="ruleInputRef"
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xlsx,.xls"
+                  style="display:none"
+                  @change="handleFileChange($event, 'rule')"
+                />
+                <CloudUploadOutlined class="upload-zone-icon" />
+                <div class="upload-zone-text">点击上传或拖入文件</div>
+                <div class="upload-zone-formats">.pdf .doc .docx .xlsx</div>
+              </div>
+              <div v-if="ruleFiles.length > 0" class="file-list">
+                <div v-for="file in ruleFiles" :key="file.uid" class="file-item">
+                  <FileOutlined class="file-item-icon" style="color: #1677FF;" />
+                  <span class="file-item-name">{{ file.name }}</span>
+                  <span class="file-item-size">{{ formatSize(file.size) }}</span>
+                  <DeleteOutlined class="file-item-delete" @click="removeFile('rule', file.uid)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 接口文档 -->
+            <div class="attachment-col">
+              <div class="attachment-col-header">
+                <ApiOutlined class="attachment-col-icon" style="color: #13C2C2;" />
+                <span class="attachment-col-title">接口文档</span>
+                <span class="attachment-col-count">{{ apiFiles.length }}/{{ MAX_FILES }}</span>
+              </div>
+              <div
+                :class="['upload-zone', { 'upload-zone--disabled': apiFiles.length >= MAX_FILES }]"
+                @click="apiFiles.length < MAX_FILES && triggerUpload('api')"
+                @dragover.prevent
+                @drop.prevent="handleDrop($event, 'api')"
+              >
+                <input
+                  ref="apiInputRef"
+                  type="file"
+                  multiple
+                  accept=".yaml,.yml,.json,.md,.pdf"
+                  style="display:none"
+                  @change="handleFileChange($event, 'api')"
+                />
+                <CloudUploadOutlined class="upload-zone-icon" />
+                <div class="upload-zone-text">点击上传或拖入文件</div>
+                <div class="upload-zone-formats">.yaml .json .md .pdf</div>
+              </div>
+              <div v-if="apiFiles.length > 0" class="file-list">
+                <div v-for="file in apiFiles" :key="file.uid" class="file-item">
+                  <FileOutlined class="file-item-icon" style="color: #13C2C2;" />
+                  <span class="file-item-name">{{ file.name }}</span>
+                  <span class="file-item-size">{{ formatSize(file.size) }}</span>
+                  <DeleteOutlined class="file-item-delete" @click="removeFile('api', file.uid)" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 采集范围选择 -->
         <div v-if="isTableLoading" class="ai-scan-banner">
           <div class="scan-bar"></div>
@@ -187,7 +304,7 @@
         </div>
         <div v-if="(collectItem !== 'script' && collectItem !== 'offline') || scriptConfigured || (collectItem === 'offline' && offlineTaskConfigured && schedulerCompleted)" class="form-section-card">
           <div class="form-section-title">
-            <span class="step-badge">2</span>
+            <span class="step-badge">3</span>
             采集范围选择
           </div>
 
@@ -279,7 +396,12 @@ import {
   CloudServerOutlined,
   EditOutlined,
   RobotOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  CloudUploadOutlined,
+  FileTextOutlined,
+  FileOutlined,
+  DeleteOutlined,
+  ApiOutlined
 } from '@ant-design/icons-vue'
 import { useTaskStore, useUIStore, useCopilotStore } from '@/stores'
 
@@ -418,6 +540,64 @@ const canProceed = computed(() => {
   }
   return true
 })
+
+// ---- 附件上传 ----
+interface UploadedFile {
+  uid: string
+  name: string
+  size: number
+}
+
+const MAX_FILES = 5
+
+const scriptFiles = ref<UploadedFile[]>([])
+const ruleFiles = ref<UploadedFile[]>([])
+const apiFiles = ref<UploadedFile[]>([])
+
+const scriptInputRef = ref<HTMLInputElement | null>(null)
+const ruleInputRef = ref<HTMLInputElement | null>(null)
+const apiInputRef = ref<HTMLInputElement | null>(null)
+
+function triggerUpload(type: 'script' | 'rule' | 'api') {
+  const map = { script: scriptInputRef, rule: ruleInputRef, api: apiInputRef }
+  map[type].value?.click()
+}
+
+function handleFileChange(event: Event, type: 'script' | 'rule' | 'api') {
+  const input = event.target as HTMLInputElement
+  if (!input.files) return
+  addFiles(Array.from(input.files), type)
+  input.value = ''
+}
+
+function handleDrop(event: DragEvent, type: 'script' | 'rule' | 'api') {
+  const files = event.dataTransfer?.files
+  if (!files) return
+  addFiles(Array.from(files), type)
+}
+
+function addFiles(files: File[], type: 'script' | 'rule' | 'api') {
+  const targetRef = type === 'script' ? scriptFiles : type === 'rule' ? ruleFiles : apiFiles
+  const remaining = MAX_FILES - targetRef.value.length
+  files.slice(0, remaining).forEach(file => {
+    targetRef.value.push({
+      uid: `${Date.now()}-${Math.random()}`,
+      name: file.name,
+      size: file.size
+    })
+  })
+}
+
+function removeFile(type: 'script' | 'rule' | 'api', uid: string) {
+  const targetRef = type === 'script' ? scriptFiles : type === 'rule' ? ruleFiles : apiFiles
+  targetRef.value = targetRef.value.filter(f => f.uid !== uid)
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 </script>
 
 <style scoped>
@@ -816,12 +996,144 @@ const canProceed = computed(() => {
   100% { left: 110%; }
 }
 
-.scan-text {
+/* ---- 附件上传 ---- */
+.attachment-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  margin-top: -8px;
+}
+
+.section-optional {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  background: #F2F3F5;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-left: 4px;
+}
+
+.attachment-columns {
+  display: flex;
+  gap: 16px;
+}
+
+.attachment-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.attachment-col-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 13px;
-  color: #722ed1;
   font-weight: 500;
+  color: var(--text-main);
+}
+
+.attachment-col-icon {
+  font-size: 15px;
+}
+
+.attachment-col-title {
+  flex: 1;
+}
+
+.attachment-col-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 12px;
+  background: #FAFAFA;
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: center;
+}
+
+.upload-zone:hover:not(.upload-zone--disabled) {
+  border-color: var(--primary-color);
+  background: var(--primary-light);
+}
+
+.upload-zone--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.upload-zone-icon {
+  font-size: 22px;
+  color: var(--text-secondary);
+}
+
+.upload-zone-text {
+  font-size: 12px;
+  color: var(--text-regular);
+}
+
+.upload-zone-formats {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--bg-white);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.file-item-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.file-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-regular);
+}
+
+.file-item-size {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.file-item-delete {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: color 0.2s;
+}
+
+.file-item-delete:hover {
+  color: #FF4D4F;
 }
 </style>
