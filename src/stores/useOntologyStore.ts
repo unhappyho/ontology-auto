@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { OntologyL1, OntologyL2, OntologyLeaf, Entity, MappingData, EntityRelation, RelationCategory, ActivityDomainNode } from '@/types'
+import type { OntologyL1, OntologyL2, OntologyLeaf, Entity, MappingData, EntityRelation, RelationCategory } from '@/types'
 import {
   ONTOLOGY_TREE,
   ACTIVITY_DOMAIN_TREE,
