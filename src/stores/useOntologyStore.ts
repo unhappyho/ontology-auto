@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { OntologyL1, OntologyL2, OntologyLeaf, Entity, MappingData, EntityRelation, RelationCategory } from '@/types'
+import type { OntologyL1, OntologyL2, OntologyLeaf, Entity, MappingData, EntityRelation, RelationCategory, ActivityDomainNode } from '@/types'
 import {
   ONTOLOGY_TREE,
+  ACTIVITY_DOMAIN_TREE,
   ENTITY_DATA,
   MAPPING_DATA,
   ENTITY_COLORS,
@@ -10,14 +11,26 @@ import {
   generateDefaultEntities
 } from '@/constants'
 
+// 实体树视图模式：business = 业务实体树，activity = 活动实体树
+export type EntityTreeMode = 'business' | 'activity'
+
 export const useOntologyStore = defineStore('ontology', () => {
   // 展开的 L1 节点
   const openL1 = ref<Set<string>>(new Set(['l1_crm']))
   // 展开的 L2 节点
   const openL2 = ref<Set<string>>(new Set(['l2_crm_user']))
 
-  // 当前选中的本体（叶节点）
-  const currentOntologyId = ref('onto_crm_user_base')
+  // 实体树视图模式（业务实体 / 活动实体）
+  const entityTreeMode = ref<EntityTreeMode>('business')
+
+  // 活动实体树：展开的领域节点
+  const openActivityDomain = ref<Set<string>>(new Set(['销售领域']))
+
+  // 内部存储：当前选中的本体叶节点 ID
+  const _currentOntologyId = ref('onto_crm_user_person')
+
+  // 对外暴露为 computed，保持向下兼容（EntityList/RelationList 只读取，不直接写入）
+  const currentOntologyId = computed(() => _currentOntologyId.value)
 
   // 映射视图模式
   const mappingViewMode = ref<'line' | 'table'>('line')
@@ -41,7 +54,7 @@ export const useOntologyStore = defineStore('ontology', () => {
     for (const l1 of ONTOLOGY_TREE) {
       for (const l2 of l1.children) {
         for (const leaf of l2.children) {
-          if (leaf.id === currentOntologyId.value) {
+          if (leaf.id === _currentOntologyId.value) {
             return leaf
           }
         }
@@ -55,7 +68,7 @@ export const useOntologyStore = defineStore('ontology', () => {
     for (const l1 of ONTOLOGY_TREE) {
       for (const l2 of l1.children) {
         for (const leaf of l2.children) {
-          if (leaf.id === currentOntologyId.value) {
+          if (leaf.id === _currentOntologyId.value) {
             return l1
           }
         }
@@ -68,7 +81,7 @@ export const useOntologyStore = defineStore('ontology', () => {
     for (const l1 of ONTOLOGY_TREE) {
       for (const l2 of l1.children) {
         for (const leaf of l2.children) {
-          if (leaf.id === currentOntologyId.value) {
+          if (leaf.id === _currentOntologyId.value) {
             return l2
           }
         }
@@ -79,12 +92,12 @@ export const useOntologyStore = defineStore('ontology', () => {
 
   // 当前实体列表
   const currentEntities = computed<Entity[]>(() => {
-    return ENTITY_DATA[currentOntologyId.value] || generateDefaultEntities(currentOntologyId.value)
+    return ENTITY_DATA[_currentOntologyId.value] || generateDefaultEntities(_currentOntologyId.value)
   })
 
   // 当前映射数据
   const currentMapping = computed<MappingData>(() => {
-    return MAPPING_DATA[currentOntologyId.value] || getDefaultMapping(currentOntologyId.value)
+    return MAPPING_DATA[_currentOntologyId.value] || getDefaultMapping(_currentOntologyId.value)
   })
 
   // 关联数据
@@ -137,11 +150,30 @@ export const useOntologyStore = defineStore('ontology', () => {
     }
   }
 
-  // 切换本体
+  // 切换本体（业务实体树叶节点）
   function switchOntology(leafId: string, l2Id: string, l1Id: string) {
-    currentOntologyId.value = leafId
+    _currentOntologyId.value = leafId
     openL1.value.add(l1Id)
     openL2.value.add(l2Id)
+  }
+
+  // 切换本体（活动实体树叶节点，无 L1/L2 层级）
+  function switchActivityOntology(leafId: string) {
+    _currentOntologyId.value = leafId
+  }
+
+  // 切换实体树视图模式
+  function switchEntityTreeMode(mode: EntityTreeMode) {
+    entityTreeMode.value = mode
+  }
+
+  // 切换活动领域节点展开/收起
+  function toggleActivityDomain(domain: string) {
+    if (openActivityDomain.value.has(domain)) {
+      openActivityDomain.value.delete(domain)
+    } else {
+      openActivityDomain.value.add(domain)
+    }
   }
 
   // 切换映射视图
@@ -207,7 +239,7 @@ export const useOntologyStore = defineStore('ontology', () => {
     return ENTITY_COLORS[index % ENTITY_COLORS.length]
   }
 
-  // 获取叶节点标签
+  // 获取叶节点标签（同时搜索业务实体树和活动实体树）
   function getLeafLabel(leafId: string): string {
     let label = ''
     ONTOLOGY_TREE.forEach(l1 => {
@@ -219,6 +251,15 @@ export const useOntologyStore = defineStore('ontology', () => {
         })
       })
     })
+    if (!label) {
+      ACTIVITY_DOMAIN_TREE.forEach(domain => {
+        domain.children.forEach(leaf => {
+          if (leaf.id === leafId) {
+            label = leaf.label
+          }
+        })
+      })
+    }
     return label
   }
 
@@ -259,7 +300,7 @@ export const useOntologyStore = defineStore('ontology', () => {
 
   // 删除实体的单个属性
   function deleteEntityAttr(entityId: string, attrEn: string) {
-    const entities = ENTITY_DATA[currentOntologyId.value]
+    const entities = ENTITY_DATA[_currentOntologyId.value]
     if (!entities) return
     const entity = entities.find(e => e.id === entityId)
     if (entity) {
@@ -272,7 +313,7 @@ export const useOntologyStore = defineStore('ontology', () => {
 
   // 批量删除实体属性
   function batchDeleteEntityAttrs(entityId: string, attrEns: string[]) {
-    const entities = ENTITY_DATA[currentOntologyId.value]
+    const entities = ENTITY_DATA[_currentOntologyId.value]
     if (!entities) return
     const entity = entities.find(e => e.id === entityId)
     if (entity) {
@@ -282,7 +323,7 @@ export const useOntologyStore = defineStore('ontology', () => {
 
   // 删除实体
   function deleteEntity(entityId: string) {
-    const entities = ENTITY_DATA[currentOntologyId.value]
+    const entities = ENTITY_DATA[_currentOntologyId.value]
     if (!entities) return
     const index = entities.findIndex(e => e.id === entityId)
     if (index !== -1) {
@@ -292,7 +333,7 @@ export const useOntologyStore = defineStore('ontology', () => {
 
   // 批量删除实体
   function batchDeleteEntities(entityIds: string[]) {
-    const entities = ENTITY_DATA[currentOntologyId.value]
+    const entities = ENTITY_DATA[_currentOntologyId.value]
     if (!entities) return
     // 使用 filter 保留不在删除列表中的实体
     const remaining = entities.filter(e => !entityIds.includes(e.id))
@@ -304,6 +345,8 @@ export const useOntologyStore = defineStore('ontology', () => {
   return {
     openL1,
     openL2,
+    entityTreeMode,
+    openActivityDomain,
     currentOntologyId,
     mappingViewMode,
     relationCategory,
@@ -322,7 +365,10 @@ export const useOntologyStore = defineStore('ontology', () => {
     unlinkedEntityCount,
     toggleL1,
     toggleL2,
+    toggleActivityDomain,
     switchOntology,
+    switchActivityOntology,
+    switchEntityTreeMode,
     switchMappingView,
     switchRelationCategory,
     switchRelationViewMode,

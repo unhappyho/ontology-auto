@@ -15,6 +15,15 @@
         <div class="entity-type-dot" :style="{ background: color }"></div>
         <span class="entity-name">{{ entity.name }}</span>
         <span class="entity-name-cn">{{ entity.nameCn }}</span>
+        <!-- 实体概念类型标签 -->
+        <span
+          v-if="entity.entity_concept_type"
+          :class="['tag-concept-type', entity.entity_concept_type === '活动实体' ? 'tag-activity' : 'tag-business']"
+        >{{ entity.entity_sub_class }}</span>
+        <span
+          v-if="entity.entity_concept_type === '活动实体' && entity.domain_view"
+          class="tag-domain-view"
+        >{{ entity.domain_view }}</span>
       </div>
       <div class="entity-card-right">
         <span v-if="entity.isNew" class="tag-new">
@@ -370,6 +379,41 @@ function handleDelete() {
 .entity-name-cn {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+/* 实体概念类型标签 */
+.tag-concept-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.tag-business {
+  background: #E6F4FF;
+  color: #1677FF;
+  border: 1px solid #91CAFF;
+}
+
+.tag-activity {
+  background: #F4EEFF;
+  color: #722ED1;
+  border: 1px solid #D3B4FF;
+}
+
+.tag-domain-view {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: #52C41A;
+  background: #F6FFED;
+  border: 1px solid #B7EB8F;
+  flex-shrink: 0;
 }
 
 .entity-card-right {

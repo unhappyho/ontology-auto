@@ -1,5 +1,15 @@
 // 本体相关类型
 
+// 实体概念类型
+export type EntityConceptType = '业务实体' | '活动实体'
+export type BusinessEntitySubClass = '人' | '财' | '物' | '信息' | '技术' | '数据'
+export type ActivityEntitySubClass = '领域活动实体' | '领域分析实体'
+export type EntitySubClass = BusinessEntitySubClass | ActivityEntitySubClass
+export type DomainView = '市场营销' | '销售领域' | '研发领域' | '交付领域' | '人力资源' | '财务领域' | '平台能力.工具能力' | '平台能力.引擎能力'
+
+// L3 分组类型
+export type L3GroupType = 'business' | 'activity'
+
 export interface OntologyLeaf {
   id: string
   label: string
@@ -7,6 +17,10 @@ export interface OntologyLeaf {
   total: number
   newCnt: number
   existCnt: number
+  // L3 分组类型信息
+  l3GroupType?: L3GroupType
+  entitySubClass?: EntitySubClass
+  domainView?: DomainView
 }
 
 export interface OntologyL2 {
@@ -40,6 +54,10 @@ export interface Entity {
   isNew: boolean
   tableName?: string
   attrs: EntityAttr[]
+  // 实体概念类型分类
+  entity_concept_type?: EntityConceptType
+  entity_sub_class?: EntitySubClass
+  domain_view?: DomainView | null
 }
 
 export interface MappingField {
@@ -67,6 +85,26 @@ export interface MappingData {
   fields: MappingField[]
   attrs: MappingAttr[]
   links: MappingLink[]
+}
+
+// 活动实体树专用类型
+export type ActivityLeafType = 'activity' | 'analysis'
+
+export interface ActivityLeaf {
+  id: string
+  label: string
+  type: ActivityLeafType   // activity → 实心圆；analysis → 菱形
+  total: number
+  newCnt: number
+  existCnt: number
+  domainView: DomainView
+}
+
+export interface ActivityDomainNode {
+  domain: DomainView
+  label: string
+  color: string
+  children: ActivityLeaf[]
 }
 
 export interface EntityRelation {
