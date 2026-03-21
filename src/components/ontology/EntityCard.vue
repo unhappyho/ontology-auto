@@ -1,45 +1,30 @@
-<template>
+﻿<template>
   <div :class="['entity-card', { expanded, 'reextract-anim': reextractAnimation }]">
-    <!-- 单卡片重识别遮罩 -->
     <div v-if="isLoading" class="entity-loading-mask">
       <LoadingOutlined spin style="font-size: 18px; color: #722ed1;" />
       <span class="entity-loading-text">重新识别中...</span>
     </div>
+
     <div class="entity-card-header" @click="toggleExpand">
       <div class="entity-card-left">
-        <a-checkbox
-          :checked="isSelected"
-          @change="handleSelect"
-          @click.stop
-        />
+        <a-checkbox :checked="isSelected" @change="handleSelect" @click.stop />
         <div class="entity-type-dot" :style="{ background: color }"></div>
         <span class="entity-name">{{ entity.name }}</span>
         <span class="entity-name-cn">{{ entity.nameCn }}</span>
-        <!-- 实体概念类型标签 -->
         <span
           v-if="entity.entity_concept_type"
           :class="['tag-concept-type', entity.entity_concept_type === '活动实体' ? 'tag-activity' : 'tag-business']"
         >{{ entity.entity_sub_class }}</span>
-        <span
-          v-if="entity.entity_concept_type === '活动实体' && entity.domain_view"
-          class="tag-domain-view"
-        >{{ entity.domain_view }}</span>
+        <span v-if="entity.entity_concept_type === '活动实体' && entity.domain_view" class="tag-domain-view">{{ entity.domain_view }}</span>
       </div>
+
       <div class="entity-card-right">
-        <span v-if="entity.isNew" class="tag-new">
-          <StarFilled />
-          新发现
-        </span>
-        <span v-else class="tag-existing">
-          <CheckCircleOutlined />
-          已入库
-        </span>
+        <span v-if="entity.isNew" class="tag-new"><StarFilled /> 新发现</span>
+        <span v-else class="tag-existing"><CheckCircleOutlined /> 已入库</span>
         <span class="attr-count">{{ entity.attrs.length }}属性</span>
         <div class="entity-ops" @click.stop>
-          <div class="entity-op-btn" title="调整所属域" @click="handleMoveDomain">
-            <SwapOutlined />
-          </div>
-          <div class="entity-op-btn" title="调整库表" @click="handleEditTable">
+          <div class="entity-op-btn" title="调整所属域" @click="handleMoveDomain"><SwapOutlined /></div>
+          <div class="entity-op-btn" title="调整来源表" @click="handleEditTable">
             <LoadingOutlined v-if="isLoading" spin />
             <DatabaseOutlined v-else />
           </div>
@@ -50,36 +35,64 @@
             cancel-text="取消"
             @confirm="handleDelete"
           >
-            <div class="entity-op-btn del" title="移除">
-              <DeleteOutlined />
-            </div>
+            <div class="entity-op-btn del" title="移除"><DeleteOutlined /></div>
           </Popconfirm>
         </div>
         <DownOutlined class="entity-expand-icon" />
       </div>
     </div>
+
     <div class="entity-card-body" v-if="expanded">
       <div class="attr-header">
         <TagOutlined />
         属性列表（{{ entity.attrs.length }} 个）
-        <span v-if="entity.tableName" class="table-name">
-          <TableOutlined />
-          {{ entity.tableName }}
-        </span>
         <div class="attr-actions" v-if="entity.attrs.length > 0">
           <a-checkbox v-model:checked="selectAllAttrs" @change="handleSelectAllAttrs">全选</a-checkbox>
-          <a-button
-            v-if="selectedAttrs.length > 0"
-            type="text"
-            danger
-            size="small"
-            @click="handleBatchDeleteAttrs"
-          >
+          <a-button v-if="selectedAttrs.length > 0" type="text" danger size="small" @click="handleBatchDeleteAttrs">
             <DeleteOutlined />
             删除选中 ({{ selectedAttrs.length }})
           </a-button>
         </div>
       </div>
+
+      <div class="source-section">
+        <div class="source-title">涉及来源</div>
+        <div class="source-list">
+          <span v-for="source in entitySources" :key="source.id" class="source-chip">
+            {{ formatSourcePath(source) }}
+          </span>
+        </div>
+      </div>
+
+      <div class="graph-section" v-if="graphNodesWithPos.length > 0">
+        <div class="source-title">来源表关联关系</div>
+        <div class="graph-wrap">
+          <svg :viewBox="`0 0 ${graphWidth} 140`" preserveAspectRatio="xMidYMid meet" class="graph-svg">
+            <line
+              v-for="edge in graphEdgesWithPos"
+              :key="edge.id"
+              :x1="edge.x1"
+              :y1="edge.y1"
+              :x2="edge.x2"
+              :y2="edge.y2"
+              class="graph-edge"
+            />
+            <text
+              v-for="edge in graphEdgesWithPos"
+              :key="`label-${edge.id}`"
+              :x="edge.mx"
+              :y="edge.my"
+              text-anchor="middle"
+              class="graph-edge-label"
+            >{{ edge.label }}</text>
+            <g v-for="node in graphNodesWithPos" :key="node.id">
+              <circle :cx="node.x" :cy="node.y" r="9" class="graph-node-dot" />
+              <text :x="node.x" :y="node.y + 24" text-anchor="middle" class="graph-node-label">{{ node.source.table }}</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+
       <div class="attr-table-wrapper">
         <table class="attr-table">
           <thead>
@@ -87,17 +100,14 @@
               <th class="col-checkbox"></th>
               <th class="col-term">术语</th>
               <th class="col-attr">属性</th>
-              <th class="col-field">物理字段</th>
+              <th class="col-field">物理字段（含来源）</th>
               <th class="col-action">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="attr in entity.attrs" :key="attr.en" class="attr-row">
               <td class="col-checkbox">
-                <a-checkbox
-                  :checked="selectedAttrs.includes(attr.en)"
-                  @change="(e: any) => handleSelectAttr(attr.en, e.target.checked)"
-                />
+                <a-checkbox :checked="selectedAttrs.includes(attr.en)" @change="(e: any) => handleSelectAttr(attr.en, e.target.checked)" />
               </td>
               <td class="col-term">
                 <div class="attr-term" @click="handleEditTerm(attr)" title="点击调整术语关联">
@@ -115,18 +125,13 @@
               <td class="col-field">
                 <div class="attr-field" @click="handleEditField(attr)" title="点击调整物理字段映射">
                   <span class="arrow">→</span>
-                  <span>{{ getMappedField(attr.en) || '选择字段' }}</span>
+                  <span class="field-name">{{ getMappedFieldName(attr.en) }}</span>
+                  <span class="field-source">{{ getMappedFieldSource(attr.en) }}</span>
                   <SettingOutlined class="edit-icon" />
                 </div>
               </td>
               <td class="col-action">
-                <a-button
-                  type="text"
-                  danger
-                  size="small"
-                  class="attr-delete-btn"
-                  @click="handleDeleteAttr(attr.en)"
-                >
+                <a-button type="text" danger size="small" class="attr-delete-btn" @click="handleDeleteAttr(attr.en)">
                   <DeleteOutlined />
                 </a-button>
               </td>
@@ -149,7 +154,6 @@ import {
   TagOutlined,
   LinkOutlined,
   DatabaseOutlined,
-  TableOutlined,
   SettingOutlined,
   LoadingOutlined
 } from '@ant-design/icons-vue'
@@ -161,9 +165,9 @@ interface Props {
   entity: Entity
   color: string
   domainLabel: string
-  reextractAnimation?: boolean // 是否显示重新抽取动画
-  defaultExpanded?: boolean // 是否默认展开
-  isSelected?: boolean // 是否被选中
+  reextractAnimation?: boolean
+  defaultExpanded?: boolean
+  isSelected?: boolean
 }
 
 const props = defineProps<Props>()
@@ -176,9 +180,49 @@ const uiStore = useUIStore()
 const ontologyStore = useOntologyStore()
 
 const expanded = ref(props.defaultExpanded ?? false)
-
-// 属性选择状态
 const selectedAttrs = ref<string[]>([])
+const isLoading = computed(() => ontologyStore.reextractingEntityId === props.entity.id)
+const entitySources = computed(() => ontologyStore.getEntitySources(props.entity.id))
+const tableGraph = computed(() => ontologyStore.getEntityTableGraph(props.entity.id))
+
+const graphWidth = computed(() => Math.max(300, tableGraph.value.nodes.length * 150))
+
+const graphNodesWithPos = computed(() => {
+  const nodes = tableGraph.value.nodes
+  if (!nodes.length) return []
+  const gap = graphWidth.value / (nodes.length + 1)
+  return nodes.map((node, idx) => ({
+    ...node,
+    x: Math.round((idx + 1) * gap),
+    y: 50
+  }))
+})
+
+const graphEdgesWithPos = computed(() => {
+  const nodeMap = new Map(graphNodesWithPos.value.map(node => [node.id, node]))
+  return tableGraph.value.edges
+    .map(edge => {
+      const source = nodeMap.get(edge.sourceNodeId)
+      const target = nodeMap.get(edge.targetNodeId)
+      if (!source || !target) return null
+      const mx = Math.round((source.x + target.x) / 2)
+      const my = Math.round((source.y + target.y) / 2) - 8
+      const rel = edge.relationType || '1:N'
+      const label = edge.joinKey ? `${rel} · ${edge.joinKey}` : rel
+      return {
+        id: edge.id,
+        x1: source.x,
+        y1: source.y,
+        x2: target.x,
+        y2: target.y,
+        mx,
+        my,
+        label
+      }
+    })
+    .filter(Boolean) as Array<{ id: string; x1: number; y1: number; x2: number; y2: number; mx: number; my: number; label: string }>
+})
+
 const selectAllAttrs = computed({
   get: () => selectedAttrs.value.length === props.entity.attrs.length && props.entity.attrs.length > 0,
   set: (val: boolean) => {
@@ -190,10 +234,23 @@ const selectAllAttrs = computed({
   }
 })
 
-// 当前实体是否正在刷新（通过计算属性监听 store 状态）
-const isLoading = computed(() => ontologyStore.reextractingEntityId === props.entity.id)
+function formatSourcePath(source: any): string {
+  return ontologyStore.formatSourcePath(source)
+}
 
-const mappingData = computed(() => ontologyStore.currentMapping)
+function getMappedField(attrName: string) {
+  return ontologyStore.getMappedFieldForAttr(props.entity.id, attrName)
+}
+
+function getMappedFieldName(attrName: string): string {
+  return getMappedField(attrName)?.name || '选择字段'
+}
+
+function getMappedFieldSource(attrName: string): string {
+  const mapped = getMappedField(attrName)
+  if (!mapped) return '-'
+  return ontologyStore.formatSourcePath(mapped)
+}
 
 function toggleExpand() {
   expanded.value = !expanded.value
@@ -215,8 +272,6 @@ function handleMoveDomain() {
 }
 
 function handleEditTable() {
-  // 打开库表编辑弹窗
-  // loading 动效会在弹窗确认后由 store 触发
   uiStore.openEntityTableModal({
     entityId: props.entity.id,
     entityName: props.entity.name
@@ -224,7 +279,6 @@ function handleEditTable() {
 }
 
 function handleEditTerm(attr: EntityAttr) {
-  // 打开术语选择弹窗
   uiStore.openTermLinkModal({
     entityId: props.entity.id,
     attrName: attr.en
@@ -232,28 +286,10 @@ function handleEditTerm(attr: EntityAttr) {
 }
 
 function handleEditField(attr: EntityAttr) {
-  // 打开物理字段选择弹窗
   uiStore.openFieldMappingModal({
     entityId: props.entity.id,
     attrName: attr.en
   })
-}
-
-function getMappedField(attrName: string): string | null {
-  if (!mappingData.value) return (props.entity.attrs.find(a => a.en === attrName) as any)?.mappedField || null
-
-  const links = mappingData.value.links
-  const attrs = mappingData.value.attrs
-  const fields = mappingData.value.fields
-
-  for (const link of links) {
-    const mappingAttr = attrs[link.attrIndex]
-    if (mappingAttr && mappingAttr.name === attrName) {
-      const field = fields[link.fieldIndex]
-      return field ? field.name : null
-    }
-  }
-  return (props.entity.attrs.find(a => a.en === attrName) as any)?.mappedField || null
 }
 
 function handleSelectAttr(attrEn: string, checked: boolean) {
@@ -311,7 +347,6 @@ function handleDelete() {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-/* 重新抽取动画效果 */
 .entity-card.reextract-anim {
   animation: reextractPulse 0.8s ease-in-out 3;
   position: relative;
@@ -343,9 +378,9 @@ function handleDelete() {
   }
   50% {
     box-shadow: 0 0 0 16px rgba(114, 46, 209, 0.15);
-    border-color: #722ED1;
+    border-color: #722ed1;
     border-width: 2px;
-    background: #EDD5FF;
+    background: #edd5ff;
   }
 }
 
@@ -381,7 +416,6 @@ function handleDelete() {
   color: var(--text-secondary);
 }
 
-/* 实体概念类型标签 */
 .tag-concept-type {
   display: inline-flex;
   align-items: center;
@@ -393,15 +427,15 @@ function handleDelete() {
 }
 
 .tag-business {
-  background: #E6F4FF;
-  color: #1677FF;
-  border: 1px solid #91CAFF;
+  background: #e6f4ff;
+  color: #1677ff;
+  border: 1px solid #91caff;
 }
 
 .tag-activity {
-  background: #F4EEFF;
-  color: #722ED1;
-  border: 1px solid #D3B4FF;
+  background: #f4eeff;
+  color: #722ed1;
+  border: 1px solid #d3b4ff;
 }
 
 .tag-domain-view {
@@ -410,9 +444,9 @@ function handleDelete() {
   padding: 0 5px;
   border-radius: 3px;
   font-size: 10px;
-  color: #52C41A;
-  background: #F6FFED;
-  border: 1px solid #B7EB8F;
+  color: #52c41a;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
   flex-shrink: 0;
 }
 
@@ -423,18 +457,7 @@ function handleDelete() {
   flex-shrink: 0;
 }
 
-.tag-new {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 7px;
-  border-radius: 10px;
-  font-size: 11px;
-  background: #F4EEFF;
-  color: #722ED1;
-  border: 1px solid #D3B4FF;
-}
-
+.tag-new,
 .tag-existing {
   display: inline-flex;
   align-items: center;
@@ -442,9 +465,18 @@ function handleDelete() {
   padding: 1px 7px;
   border-radius: 10px;
   font-size: 11px;
-  background: #E8FFEA;
+}
+
+.tag-new {
+  background: #f4eeff;
+  color: #722ed1;
+  border: 1px solid #d3b4ff;
+}
+
+.tag-existing {
+  background: #e8ffea;
   color: var(--success-color);
-  border: 1px solid #B7EB8F;
+  border: 1px solid #b7eb8f;
 }
 
 .attr-count {
@@ -472,7 +504,7 @@ function handleDelete() {
 }
 
 .entity-op-btn:hover {
-  background: #F2F3F5;
+  background: #f2f3f5;
   color: var(--primary-color);
 }
 
@@ -493,7 +525,7 @@ function handleDelete() {
 .entity-card-body {
   border-top: 1px solid var(--border-color);
   padding: 10px 12px;
-  background: #FAFAFA;
+  background: #fafafa;
 }
 
 .attr-header {
@@ -512,6 +544,66 @@ function handleDelete() {
   gap: 12px;
 }
 
+.source-section,
+.graph-section {
+  margin-bottom: 10px;
+}
+
+.source-title {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: #f0f5ff;
+  border: 1px solid #adc6ff;
+  color: #1d39c4;
+}
+
+.graph-wrap {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: #fff;
+  overflow-x: auto;
+}
+
+.graph-svg {
+  width: 100%;
+  min-width: 280px;
+  height: 140px;
+}
+
+.graph-edge {
+  stroke: #91d5ff;
+  stroke-width: 2;
+}
+
+.graph-edge-label {
+  font-size: 10px;
+  fill: #595959;
+}
+
+.graph-node-dot {
+  fill: #1677ff;
+}
+
+.graph-node-label {
+  font-size: 11px;
+  fill: #595959;
+}
+
 .attr-delete-btn {
   opacity: 0;
   transition: opacity 0.2s;
@@ -519,19 +611,6 @@ function handleDelete() {
 
 .attr-row:hover .attr-delete-btn {
   opacity: 1;
-}
-
-.table-name {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  background: #E6F7FF;
-  border: 1px solid #91D5FF;
-  border-radius: 4px;
-  font-size: 10px;
-  color: var(--primary-color);
 }
 
 .attr-table-wrapper {
@@ -551,7 +630,7 @@ function handleDelete() {
   font-weight: 500;
   color: var(--text-secondary);
   font-size: 11px;
-  background: #F5F5F5;
+  background: #f5f5f5;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -562,7 +641,7 @@ function handleDelete() {
 }
 
 .attr-row:hover {
-  background: #FAFAFA;
+  background: #fafafa;
 }
 
 .col-checkbox {
@@ -571,15 +650,15 @@ function handleDelete() {
 }
 
 .col-term {
-  width: 25%;
+  width: 20%;
 }
 
 .col-attr {
-  width: 35%;
+  width: 25%;
 }
 
 .col-field {
-  width: 30%;
+  width: 45%;
 }
 
 .col-action {
@@ -599,8 +678,8 @@ function handleDelete() {
   margin-left: 4px;
   font-size: 9px;
   font-weight: 500;
-  color: #722ED1;
-  background: #F4EEFF;
+  color: #722ed1;
+  background: #f4eeff;
   border-radius: 3px;
 }
 
@@ -618,9 +697,9 @@ function handleDelete() {
   color: var(--primary-color);
   cursor: pointer;
   padding: 2px 6px;
-  background: #F4EEFF;
+  background: #f4eeff;
   border-radius: 3px;
-  border: 1px solid #D3B4FF;
+  border: 1px solid #d3b4ff;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -628,28 +707,38 @@ function handleDelete() {
 }
 
 .attr-term:hover {
-  background: #E5DBFF;
+  background: #e5dbff;
 }
 
 .attr-field {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 10px;
   color: var(--text-regular);
   cursor: pointer;
-  padding: 2px 6px;
-  background: #F0F0F0;
+  padding: 4px 6px;
+  background: #f0f0f0;
   border-radius: 3px;
   border: 1px solid var(--border-color);
-  max-width: 100%;
+}
+
+.field-name {
+  font-weight: 600;
+  color: #262626;
+}
+
+.field-source {
+  color: #8c8c8c;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .attr-field:hover {
-  background: #E6E6E6;
+  background: #e6e6e6;
 }
 
 .attr-field .arrow {
@@ -662,7 +751,6 @@ function handleDelete() {
   color: var(--text-secondary);
 }
 
-/* ---- 单卡片重识别遮罩 ---- */
 .entity-loading-mask {
   position: absolute;
   inset: 0;

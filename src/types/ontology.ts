@@ -1,4 +1,4 @@
-// 本体相关类型
+﻿// 本体相关类型
 
 // 实体概念类型
 export type EntityConceptType = '业务实体' | '活动实体'
@@ -39,12 +39,40 @@ export interface OntologyL1 {
   children: OntologyL2[]
 }
 
+export interface DataSourceBinding {
+  id?: string
+  dataSource: string
+  database: string
+  table: string
+}
+
+export interface EntityTableGraphNode {
+  id: string
+  source: DataSourceBinding
+}
+
+export interface EntityTableGraphEdge {
+  id: string
+  sourceNodeId: string
+  targetNodeId: string
+  relationType?: RelationType
+  joinKey?: string
+  note?: string
+}
+
+export interface EntityTableGraph {
+  nodes: EntityTableGraphNode[]
+  edges: EntityTableGraphEdge[]
+}
+
 export interface EntityAttr {
   en: string
   cn: string
   termId?: string
   termName?: string
   isNew?: boolean
+  mappedField?: string
+  mappedFieldSource?: DataSourceBinding
 }
 
 export interface Entity {
@@ -52,7 +80,10 @@ export interface Entity {
   name: string
   nameCn: string
   isNew: boolean
+  // legacy single-table field, used as fallback
   tableName?: string
+  sourceBindings?: DataSourceBinding[]
+  tableGraph?: EntityTableGraph
   attrs: EntityAttr[]
   // 实体概念类型分类
   entity_concept_type?: EntityConceptType
@@ -63,6 +94,9 @@ export interface Entity {
 export interface MappingField {
   name: string
   type: string
+  dataSource?: string
+  database?: string
+  table?: string
 }
 
 export interface MappingAttr {
@@ -93,7 +127,7 @@ export type ActivityLeafType = 'activity' | 'analysis'
 export interface ActivityLeaf {
   id: string
   label: string
-  type: ActivityLeafType   // activity → 实心圆；analysis → 菱形
+  type: ActivityLeafType   // activity => 实心圆；analysis => 菱形
   total: number
   newCnt: number
   existCnt: number

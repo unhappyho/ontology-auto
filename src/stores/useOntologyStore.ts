@@ -1,6 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { OntologyL1, OntologyL2, OntologyLeaf, Entity, MappingData, EntityRelation, RelationCategory } from '@/types'
+import type {
+  OntologyL1,
+  OntologyL2,
+  OntologyLeaf,
+  Entity,
+  MappingData,
+  MappingField,
+  EntityRelation,
+  RelationCategory,
+  DataSourceBinding,
+  EntityTableGraph
+} from '@/types'
 import {
   ONTOLOGY_TREE,
   ACTIVITY_DOMAIN_TREE,
@@ -99,6 +110,115 @@ export const useOntologyStore = defineStore('ontology', () => {
   const currentMapping = computed<MappingData>(() => {
     return MAPPING_DATA[_currentOntologyId.value] || getDefaultMapping(_currentOntologyId.value)
   })
+
+  function normalizeBinding(binding: Partial<DataSourceBinding>): DataSourceBinding {
+    return {
+      id: binding.id || `${binding.dataSource || 'default_source'}.${binding.database || 'default_db'}.${binding.table || 'unknown_table'}`,
+      dataSource: binding.dataSource || 'default_source',
+      database: binding.database || 'default_db',
+      table: binding.table || 'unknown_table'
+    }
+  }
+
+  function bindingKey(binding: Partial<DataSourceBinding>): string {
+    return `${binding.dataSource || 'default_source'}|${binding.database || 'default_db'}|${binding.table || 'unknown_table'}`
+  }
+
+  function findEntity(entityId: string): Entity | undefined {
+    return currentEntities.value.find(e => e.id === entityId)
+  }
+
+  function getEntitySources(entityId: string): DataSourceBinding[] {
+    const entity = findEntity(entityId)
+    if (!entity) return []
+
+    if (entity.sourceBindings && entity.sourceBindings.length > 0) {
+      return entity.sourceBindings.map(normalizeBinding)
+    }
+
+    const sourceMap = new Map<string, DataSourceBinding>()
+    const mapping = currentMapping.value
+    if (mapping?.links?.length) {
+      for (const link of mapping.links) {
+        const mappingAttr = mapping.attrs[link.attrIndex]
+        if (!mappingAttr || mappingAttr.entity !== entity.name) continue
+        const field = mapping.fields[link.fieldIndex]
+        if (!field) continue
+        const source = normalizeBinding({
+          dataSource: field.dataSource,
+          database: field.database,
+          table: field.table || entity.tableName
+        })
+        sourceMap.set(bindingKey(source), source)
+      }
+    }
+
+    if (sourceMap.size === 0 && entity.tableName) {
+      const source = normalizeBinding({ table: entity.tableName })
+      sourceMap.set(bindingKey(source), source)
+    }
+
+    if (sourceMap.size === 0) {
+      const source = normalizeBinding({ table: `${entity.name.toLowerCase()}_table` })
+      sourceMap.set(bindingKey(source), source)
+    }
+
+    const sources = Array.from(sourceMap.values())
+    entity.sourceBindings = sources
+    if (!entity.tableName && sources[0]) {
+      entity.tableName = sources[0].table
+    }
+    return sources
+  }
+
+  function getMappedFieldForAttr(entityId: string, attrName: string): MappingField | null {
+    const entity = findEntity(entityId)
+    if (!entity) return null
+
+    const attr = entity.attrs.find(a => a.en === attrName)
+    if (attr?.mappedField) {
+      return {
+        name: attr.mappedField,
+        type: 'CUSTOM',
+        dataSource: attr.mappedFieldSource?.dataSource,
+        database: attr.mappedFieldSource?.database,
+        table: attr.mappedFieldSource?.table
+      }
+    }
+
+    const mapping = currentMapping.value
+    for (const link of mapping.links) {
+      const mappingAttr = mapping.attrs[link.attrIndex]
+      if (!mappingAttr) continue
+      if (mappingAttr.entity !== entity.name || mappingAttr.name !== attrName) continue
+      return mapping.fields[link.fieldIndex] || null
+    }
+
+    return null
+  }
+
+  function getEntityTableGraph(entityId: string): EntityTableGraph {
+    const entity = findEntity(entityId)
+    if (!entity) return { nodes: [], edges: [] }
+    if (entity.tableGraph) return entity.tableGraph
+
+    const sources = getEntitySources(entityId)
+    const nodes = sources.map(source => ({
+      id: source.id || `${source.dataSource}.${source.database}.${source.table}`,
+      source
+    }))
+
+    const edges: EntityTableGraph['edges'] = []
+    for (let i = 0; i < nodes.length - 1; i += 1) {
+      edges.push({
+        id: `e-${nodes[i].id}-${nodes[i + 1].id}`,
+        sourceNodeId: nodes[i].id,
+        targetNodeId: nodes[i + 1].id,
+        note: 'auto'
+      })
+    }
+    return { nodes, edges }
+  }
 
   // 关联数据
   const relations = ref<EntityRelation[]>([
@@ -291,11 +411,65 @@ export const useOntologyStore = defineStore('ontology', () => {
 
   // 更新实体的库表名
   function updateEntityTableName(entityId: string, tableName: string) {
-    const entities = currentEntities.value
-    const entity = entities.find(e => e.id === entityId)
+    const entity = findEntity(entityId)
     if (entity) {
       entity.tableName = tableName
+      const source = normalizeBinding({ table: tableName })
+      entity.sourceBindings = [source]
+      entity.tableGraph = {
+        nodes: [{ id: source.id || tableName, source }],
+        edges: []
+      }
     }
+  }
+
+  function updateEntitySources(entityId: string, sources: DataSourceBinding[]) {
+    const entity = findEntity(entityId)
+    if (!entity) return
+    const normalized = sources.map(normalizeBinding)
+    entity.sourceBindings = normalized
+    if (normalized[0]) {
+      entity.tableName = normalized[0].table
+    }
+  }
+
+  function updateEntityTableGraph(entityId: string, graph: EntityTableGraph) {
+    const entity = findEntity(entityId)
+    if (!entity) return
+    entity.tableGraph = graph
+  }
+
+  function updateEntityAttrMappedField(entityId: string, attrEn: string, field: MappingField) {
+    const entity = findEntity(entityId)
+    if (!entity) return
+    const attr = entity.attrs.find(a => a.en === attrEn)
+    if (!attr) return
+    attr.mappedField = field.name
+    attr.mappedFieldSource = normalizeBinding({
+      dataSource: field.dataSource,
+      database: field.database,
+      table: field.table
+    })
+  }
+
+  function formatSourcePath(source?: Partial<DataSourceBinding> | null): string {
+    if (!source) return '-'
+    const normalized = normalizeBinding(source)
+    return `${normalized.dataSource}.${normalized.database}.${normalized.table}`
+  }
+
+  function formatFieldPath(field?: MappingField | null): string {
+    if (!field) return '-'
+    return `${field.name} (${formatSourcePath(field)})`
+  }
+
+  function buildBindingKey(source: Partial<DataSourceBinding>): string {
+    return bindingKey(source)
+  }
+
+  function parseBindingKey(key: string): DataSourceBinding {
+    const [dataSource = 'default_source', database = 'default_db', table = 'unknown_table'] = key.split('|')
+    return normalizeBinding({ dataSource, database, table })
   }
 
   // 删除实体的单个属性
@@ -381,7 +555,17 @@ export const useOntologyStore = defineStore('ontology', () => {
     triggerEntityReextract,
     getEntityColor,
     getLeafLabel,
+    getEntitySources,
+    getEntityTableGraph,
+    getMappedFieldForAttr,
+    formatSourcePath,
+    formatFieldPath,
+    buildBindingKey,
+    parseBindingKey,
     updateEntityTableName,
+    updateEntitySources,
+    updateEntityTableGraph,
+    updateEntityAttrMappedField,
     deleteEntityAttr,
     batchDeleteEntityAttrs,
     deleteEntity,

@@ -450,14 +450,40 @@ export const ENTITY_DATA: Record<string, Entity[]> = {
 }
 
 export const MAPPING_DATA: Record<string, MappingData> = {
+  onto_crm_user_person: {
+    fields: [
+      { name: 'user_id', type: 'VARCHAR(32)', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      { name: 'user_name', type: 'VARCHAR(64)', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      { name: 'phone_number', type: 'VARCHAR(20)', dataSource: 'crm_api', database: 'crm_db', table: 't_user_profile' },
+      { name: 'status', type: 'INT(2)', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      { name: 'create_time', type: 'DATETIME', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      { name: 'email', type: 'VARCHAR(128)', dataSource: 'crm_api', database: 'crm_db', table: 't_user_profile' }
+    ],
+    attrs: [
+      { name: 'userId', entity: 'User' },
+      { name: 'userName', entity: 'User' },
+      { name: 'phoneNumber', entity: 'User' },
+      { name: 'status', entity: 'User' },
+      { name: 'createTime', entity: 'User' },
+      { name: 'email', entity: 'User' }
+    ],
+    links: [
+      { fieldIndex: 0, attrIndex: 0, confidence: 'high' },
+      { fieldIndex: 1, attrIndex: 1, confidence: 'high' },
+      { fieldIndex: 2, attrIndex: 2, confidence: 'high' },
+      { fieldIndex: 3, attrIndex: 3, confidence: 'high' },
+      { fieldIndex: 4, attrIndex: 4, confidence: 'mid' },
+      { fieldIndex: 5, attrIndex: 5, confidence: 'mid' }
+    ]
+  },
   onto_crm_user_base: {
     fields: [
-      { name: 'user_id', type: 'VARCHAR(32)' },
-      { name: 'user_name', type: 'VARCHAR(64)' },
-      { name: 'phone_number', type: 'VARCHAR(20)' },
-      { name: 'status', type: 'INT(2)' },
-      { name: 'create_time', type: 'DATETIME' },
-      { name: 'email', type: 'VARCHAR(128)' }
+      { name: 'user_id', type: 'VARCHAR(32)', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      { name: 'user_name', type: 'VARCHAR(64)', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      { name: 'phone_number', type: 'VARCHAR(20)', dataSource: 'crm_api', database: 'crm_db', table: 't_user_profile' },
+      { name: 'status', type: 'INT(2)', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      { name: 'create_time', type: 'DATETIME', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      { name: 'email', type: 'VARCHAR(128)', dataSource: 'crm_api', database: 'crm_db', table: 't_user_profile' }
     ],
     attrs: [
       { name: 'userId', entity: 'User' },
@@ -478,11 +504,11 @@ export const MAPPING_DATA: Record<string, MappingData> = {
   },
   onto_order_main: {
     fields: [
-      { name: 'order_id', type: 'VARCHAR(32)' },
-      { name: 'user_id', type: 'VARCHAR(32)' },
-      { name: 'amount', type: 'DECIMAL(10,2)' },
-      { name: 'pay_status', type: 'INT(1)' },
-      { name: 'finish_time', type: 'DATETIME' }
+      { name: 'order_id', type: 'VARCHAR(32)', dataSource: 'crm_api', database: 'order_db', table: 't_order' },
+      { name: 'user_id', type: 'VARCHAR(32)', dataSource: 'crm_api', database: 'order_db', table: 't_order' },
+      { name: 'amount', type: 'DECIMAL(10,2)', dataSource: 'crm_api', database: 'order_db', table: 't_order_item' },
+      { name: 'pay_status', type: 'INT(1)', dataSource: 'billing_dw', database: 'billing_db', table: 't_payment' },
+      { name: 'finish_time', type: 'DATETIME', dataSource: 'crm_api', database: 'order_db', table: 't_order' }
     ],
     attrs: [
       { name: 'orderId', entity: 'Order' },
@@ -576,11 +602,11 @@ export const ENTITY_COLORS = ['#165DFF', '#722ED1', '#14C9C9', '#FA8C16', '#00B4
 export function getDefaultMapping(_ontoId: string): MappingData {
   return {
     fields: [
-      { name: 'id', type: 'VARCHAR(32)' },
-      { name: 'name', type: 'VARCHAR(128)' },
-      { name: 'status', type: 'INT(1)' },
-      { name: 'create_time', type: 'DATETIME' },
-      { name: 'update_time', type: 'DATETIME' }
+      { name: 'id', type: 'VARCHAR(32)', dataSource: 'default_source', database: 'default_db', table: 'entity_main' },
+      { name: 'name', type: 'VARCHAR(128)', dataSource: 'default_source', database: 'default_db', table: 'entity_main' },
+      { name: 'status', type: 'INT(1)', dataSource: 'default_source', database: 'default_db', table: 'entity_snapshot' },
+      { name: 'create_time', type: 'DATETIME', dataSource: 'default_source', database: 'default_db', table: 'entity_main' },
+      { name: 'update_time', type: 'DATETIME', dataSource: 'default_source', database: 'default_db', table: 'entity_snapshot' }
     ],
     attrs: [
       { name: 'id', entity: 'Entity' },

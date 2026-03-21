@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <a-modal
     v-model:open="visible"
     title="物理字段映射"
-    :width="520"
+    :width="640"
     @ok="handleConfirm"
     @cancel="handleCancel"
   >
@@ -11,50 +11,41 @@
         当前映射属性: <strong>{{ modalData?.attrName }}</strong>
       </div>
       <div class="field-search">
-        <a-input
-          v-model:value="searchText"
-          placeholder="搜索物理字段..."
-          allow-clear
-        >
-          <template #prefix>
-            <SearchOutlined />
-          </template>
+        <a-input v-model:value="searchText" placeholder="搜索字段名/来源..." allow-clear>
+          <template #prefix><SearchOutlined /></template>
         </a-input>
       </div>
       <div class="field-list">
         <div
           v-for="field in filteredFields"
-          :key="field.name"
-          :class="['field-item', { selected: selectedField === field.name }]"
-          @click="selectedField = field.name"
+          :key="fieldKey(field)"
+          :class="['field-item', { selected: selectedFieldKey === fieldKey(field) }]"
+          @click="selectedFieldKey = fieldKey(field)"
         >
           <DatabaseOutlined class="field-icon" />
-          <div class="field-info">
-            <span class="field-name">{{ field.name }}</span>
-            <span class="field-type">{{ field.type }}</span>
+          <div class="field-main">
+            <div class="field-top">
+              <span class="field-name">{{ field.name }}</span>
+              <span class="field-type">{{ field.type }}</span>
+            </div>
+            <div class="field-source">{{ ontologyStore.formatSourcePath(field) }}</div>
           </div>
-          <CheckOutlined v-if="selectedField === field.name" class="check-icon" />
+          <CheckOutlined v-if="selectedFieldKey === fieldKey(field)" class="check-icon" />
         </div>
-        <a-empty v-if="filteredFields.length === 0 && searchText" description="未找到匹配的字段" />
+        <a-empty v-if="filteredFields.length === 0" description="未找到匹配字段" />
       </div>
     </div>
     <template #footer>
       <a-button @click="handleCancel">取消</a-button>
-      <a-button type="primary" @click="handleConfirm" :disabled="!selectedField">
-        <CheckOutlined />
-        确认
-      </a-button>
+      <a-button type="primary" @click="handleConfirm" :disabled="!selectedFieldKey">确认</a-button>
     </template>
   </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import {
-  SearchOutlined,
-  DatabaseOutlined,
-  CheckOutlined
-} from '@ant-design/icons-vue'
+import { ref, computed, watch } from 'vue'
+import { SearchOutlined, DatabaseOutlined, CheckOutlined } from '@ant-design/icons-vue'
+import type { MappingField } from '@/types'
 import { useUIStore, useOntologyStore } from '@/stores'
 
 const uiStore = useUIStore()
@@ -70,38 +61,59 @@ const visible = computed({
 const modalData = computed(() => uiStore.fieldMappingModalData)
 
 const searchText = ref('')
-const selectedField = ref('')
+const selectedFieldKey = ref('')
 
-// 从 ontologyStore 获取当前映射的物理字段
-const fields = computed(() => {
-  const mapping = ontologyStore.currentMapping
-  if (!mapping) return []
-  return mapping.fields
-})
+const fields = computed<MappingField[]>(() => ontologyStore.currentMapping?.fields || [])
 
 const filteredFields = computed(() => {
-  if (!searchText.value) return fields.value
-  const search = searchText.value.toLowerCase()
-  return fields.value.filter(f =>
-    f.name.toLowerCase().includes(search)
-  )
+  const keyword = searchText.value.trim().toLowerCase()
+  if (!keyword) return fields.value
+  return fields.value.filter(field => {
+    const sourcePath = ontologyStore.formatSourcePath(field).toLowerCase()
+    return field.name.toLowerCase().includes(keyword) || sourcePath.includes(keyword)
+  })
 })
+
+watch(
+  () => visible.value,
+  (isOpen) => {
+    if (!isOpen) return
+    searchText.value = ''
+    selectedFieldKey.value = ''
+
+    const entityId = modalData.value?.entityId
+    const attrName = modalData.value?.attrName
+    if (!entityId || !attrName) return
+
+    const currentField = ontologyStore.getMappedFieldForAttr(entityId, attrName)
+    if (currentField) {
+      selectedFieldKey.value = fieldKey(currentField)
+    }
+  },
+  { immediate: true }
+)
+
+function fieldKey(field: MappingField): string {
+  return `${field.name}|${field.type}|${ontologyStore.formatSourcePath(field)}`
+}
+
+function findSelectedField(): MappingField | null {
+  return fields.value.find(field => fieldKey(field) === selectedFieldKey.value) || null
+}
 
 function handleCancel() {
   searchText.value = ''
-  selectedField.value = ''
+  selectedFieldKey.value = ''
   uiStore.closeFieldMappingModal()
 }
 
 function handleConfirm() {
-  if (!selectedField.value) return
+  const entityId = modalData.value?.entityId
+  const attrName = modalData.value?.attrName
+  const selectedField = findSelectedField()
+  if (!entityId || !attrName || !selectedField) return
 
-  // 更新属性的物理字段映射
-  if (modalData.value?.attrName) {
-    // 这里需要更新映射
-    console.log('Selected field:', selectedField.value, 'for attr:', modalData.value.attrName)
-  }
-
+  ontologyStore.updateEntityAttrMappedField(entityId, attrName, selectedField)
   handleCancel()
 }
 </script>
@@ -122,12 +134,8 @@ function handleConfirm() {
   color: var(--text-main);
 }
 
-.field-search {
-  flex-shrink: 0;
-}
-
 .field-list {
-  max-height: 320px;
+  max-height: 360px;
   overflow-y: auto;
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -147,10 +155,7 @@ function handleConfirm() {
   border-bottom: none;
 }
 
-.field-item:hover {
-  background: var(--primary-light);
-}
-
+.field-item:hover,
 .field-item.selected {
   background: var(--primary-light);
 }
@@ -160,8 +165,12 @@ function handleConfirm() {
   color: var(--primary-color);
 }
 
-.field-info {
+.field-main {
   flex: 1;
+  min-width: 0;
+}
+
+.field-top {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -177,8 +186,17 @@ function handleConfirm() {
   font-size: 11px;
   color: var(--text-secondary);
   padding: 2px 6px;
-  background: #F2F3F5;
+  background: #f2f3f5;
   border-radius: 3px;
+}
+
+.field-source {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #8c8c8c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .check-icon {
