@@ -57,6 +57,8 @@ export interface EntityTableGraphEdge {
   targetNodeId: string
   relationType?: RelationType
   joinKey?: string
+  leftField?: string
+  rightField?: string
   note?: string
 }
 

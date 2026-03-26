@@ -336,6 +336,9 @@
                 </div>
                 <div class="tb-comment">{{ record.comment }}</div>
               </template>
+              <template v-else-if="column.key === 'code'">
+                <span class="tb-code">{{ record.code }}</span>
+              </template>
               <template v-else-if="column.key === 'fields'">
                 <div class="ellipsis-text">{{ record.fields }}</div>
               </template>
@@ -458,21 +461,22 @@ function triggerTableLoading() {
 
 const tableColumns = [
   { key: 'checkbox', width: 36 },
-  { title: '表名', key: 'name', width: '20%' },
+  { title: '表名', key: 'name', width: '17%' },
+  { title: '表编码', key: 'code', width: '13%' },
   { title: '所属库', dataIndex: 'database', width: '13%' },
-  { title: '字段预览', key: 'fields', width: '35%' },
+  { title: '字段预览', key: 'fields', width: '30%' },
   { title: '操作', key: 'actions' }
 ]
 
 const tableData = ref([
-  { name: 't_user_main', comment: '用户主表', database: 'crm_db', fields: 'user_id, user_name, phone_number, status, create_time...', selected: true },
-  { name: 't_order_flow', comment: '订单流水表', database: 'crm_db', fields: 'order_id, user_id, amount, pay_status, finish_time...', selected: true },
-  { name: 't_product_catalog', comment: '产品目录表', database: 'crm_db', fields: 'product_id, product_name, category, price, stock_qty...', selected: true },
-  { name: 't_contract_info', comment: '合同信息表', database: 'crm_db', fields: 'contract_id, user_id, product_id, start_date, expire_date...', selected: true },
-  { name: 't_complaint_record', comment: '投诉工单记录', database: 'crm_db', fields: 'complaint_id, user_id, type_code, content, handle_status...', selected: true },
-  { name: 't_api_logs', comment: '接口调用日志', database: 'log_db', fields: 'log_id, api_path, request_ip, response_time, error_code...', selected: false },
-  { name: 't_base_station', comment: '基站信息主表', database: 'geo_db', fields: 'station_id, station_name, longitude, latitude, coverage_radius...', selected: false },
-  { name: 't_billing_detail', comment: '计费明细表', database: 'billing_db', fields: 'bill_id, user_id, cycle, total_fee, discount_fee, pay_channel...', selected: false }
+  { name: 't_user_main', code: 'U001', comment: '用户主表', database: 'crm_db', fields: 'user_id, user_name, phone_number, status, create_time...', selected: true },
+  { name: 't_order_flow', code: 'O001', comment: '订单流水表', database: 'crm_db', fields: 'order_id, user_id, amount, pay_status, finish_time...', selected: true },
+  { name: 't_product_catalog', code: 'P001', comment: '产品目录表', database: 'crm_db', fields: 'product_id, product_name, category, price, stock_qty...', selected: true },
+  { name: 't_contract_info', code: 'C001', comment: '合同信息表', database: 'crm_db', fields: 'contract_id, user_id, product_id, start_date, expire_date...', selected: true },
+  { name: 't_complaint_record', code: 'R001', comment: '投诉工单记录', database: 'crm_db', fields: 'complaint_id, user_id, type_code, content, handle_status...', selected: true },
+  { name: 't_api_logs', code: 'L001', comment: '接口调用日志', database: 'log_db', fields: 'log_id, api_path, request_ip, response_time, error_code...', selected: false },
+  { name: 't_base_station', code: 'B001', comment: '基站信息主表', database: 'geo_db', fields: 'station_id, station_name, longitude, latitude, coverage_radius...', selected: false },
+  { name: 't_billing_detail', code: 'D001', comment: '计费明细表', database: 'billing_db', fields: 'bill_id, user_id, cycle, total_fee, discount_fee, pay_channel...', selected: false }
 ])
 
 const filteredTables = computed(() => {
@@ -904,6 +908,11 @@ function formatSize(bytes: number): string {
 .tb-comment {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+.tb-code {
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
 .ellipsis-text {

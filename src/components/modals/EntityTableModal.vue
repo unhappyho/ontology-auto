@@ -43,16 +43,21 @@
           <a-select v-model:value="edge.sourceNodeId" class="edge-select" placeholder="起点表">
             <a-select-option v-for="option in selectedSourceOptions" :key="option.key" :value="option.key">{{ option.table }}</a-select-option>
           </a-select>
+          <a-select v-model:value="edge.leftField" class="edge-field" placeholder="左表字段" allow-clear show-search>
+            <a-select-option v-for="f in getTableFields(edge.sourceNodeId)" :key="f.name" :value="f.name">{{ f.comment }}（{{ f.name }}）</a-select-option>
+          </a-select>
           <span class="edge-arrow">→</span>
           <a-select v-model:value="edge.targetNodeId" class="edge-select" placeholder="终点表">
             <a-select-option v-for="option in selectedSourceOptions" :key="option.key" :value="option.key">{{ option.table }}</a-select-option>
+          </a-select>
+          <a-select v-model:value="edge.rightField" class="edge-field" placeholder="右表字段" allow-clear show-search>
+            <a-select-option v-for="f in getTableFields(edge.targetNodeId)" :key="f.name" :value="f.name">{{ f.comment }}（{{ f.name }}）</a-select-option>
           </a-select>
           <a-select v-model:value="edge.relationType" class="edge-rel" placeholder="关系类型">
             <a-select-option value="1:1">1:1</a-select-option>
             <a-select-option value="1:N">1:N</a-select-option>
             <a-select-option value="N:N">N:N</a-select-option>
           </a-select>
-          <a-input v-model:value="edge.joinKey" class="edge-key" placeholder="关联键(如 user_id)" />
           <a-button danger type="text" @click="removeEdgeRow(idx)"><DeleteOutlined /></a-button>
         </div>
         <a-button size="small" @click="addEdgeRow">
@@ -86,11 +91,17 @@ interface TableOption {
   table: string
 }
 
+interface FieldOption {
+  name: string
+  comment: string
+}
+
 interface EdgeRow {
   sourceNodeId: string
   targetNodeId: string
   relationType: RelationType
-  joinKey: string
+  leftField: string
+  rightField: string
 }
 
 const uiStore = useUIStore()
@@ -129,6 +140,72 @@ const selectedSourceOptions = computed(() => {
   return availableTables.value.filter(table => keySet.has(table.key))
 })
 
+const tableFieldsMap: Record<string, FieldOption[]> = {
+  't_user': [
+    { name: 'user_id', comment: '用户唯一标识' },
+    { name: 'user_name', comment: '用户真实姓名' },
+    { name: 'phone_number', comment: '联系手机号' },
+    { name: 'status', comment: '状态' },
+    { name: 'create_time', comment: '记录创建时间' }
+  ],
+  't_user_profile': [
+    { name: 'profile_id', comment: '画像ID' },
+    { name: 'user_id', comment: '用户ID' },
+    { name: 'age', comment: '年龄' },
+    { name: 'gender', comment: '性别' },
+    { name: 'region', comment: '所在地区' }
+  ],
+  't_user_auth': [
+    { name: 'auth_id', comment: '认证ID' },
+    { name: 'user_id', comment: '用户ID' },
+    { name: 'auth_type', comment: '认证类型' },
+    { name: 'token', comment: '令牌' },
+    { name: 'expire_time', comment: '过期时间' }
+  ],
+  't_order': [
+    { name: 'order_id', comment: '订单ID' },
+    { name: 'user_id', comment: '用户ID' },
+    { name: 'amount', comment: '订单金额' },
+    { name: 'pay_status', comment: '支付状态' },
+    { name: 'create_time', comment: '创建时间' }
+  ],
+  't_order_item': [
+    { name: 'item_id', comment: '明细ID' },
+    { name: 'order_id', comment: '订单ID' },
+    { name: 'product_id', comment: '产品ID' },
+    { name: 'quantity', comment: '数量' },
+    { name: 'unit_price', comment: '单价' }
+  ],
+  't_bill': [
+    { name: 'bill_id', comment: '账单ID' },
+    { name: 'user_id', comment: '用户ID' },
+    { name: 'cycle', comment: '账期' },
+    { name: 'total_fee', comment: '总费用' },
+    { name: 'pay_channel', comment: '支付渠道' }
+  ],
+  't_payment': [
+    { name: 'pay_id', comment: '支付ID' },
+    { name: 'bill_id', comment: '账单ID' },
+    { name: 'pay_amount', comment: '支付金额' },
+    { name: 'pay_time', comment: '支付时间' },
+    { name: 'pay_status', comment: '支付状态' }
+  ],
+  't_user_login_log': [
+    { name: 'log_id', comment: '日志ID' },
+    { name: 'user_id', comment: '用户ID' },
+    { name: 'login_ip', comment: '登录IP' },
+    { name: 'login_time', comment: '登录时间' },
+    { name: 'device', comment: '设备信息' }
+  ]
+}
+
+function getTableFields(tableKey: string): FieldOption[] {
+  if (!tableKey) return []
+  const parts = tableKey.split('|')
+  const tableName = parts[2] || ''
+  return tableFieldsMap[tableName] || []
+}
+
 const filteredTables = computed(() => {
   if (!searchText.value) return availableTables.value
   const kw = searchText.value.toLowerCase()
@@ -154,7 +231,8 @@ watch(
       sourceNodeId: ontologyStore.buildBindingKey(graph.nodes.find(n => n.id === edge.sourceNodeId)?.source || {}),
       targetNodeId: ontologyStore.buildBindingKey(graph.nodes.find(n => n.id === edge.targetNodeId)?.source || {}),
       relationType: edge.relationType || '1:N',
-      joinKey: edge.joinKey || ''
+      leftField: edge.leftField || '',
+      rightField: edge.rightField || ''
     }))
 
     searchText.value = ''
@@ -195,7 +273,7 @@ function addCustomSource() {
 }
 
 function addEdgeRow() {
-  edgeRows.value.push({ sourceNodeId: '', targetNodeId: '', relationType: '1:N', joinKey: '' })
+  edgeRows.value.push({ sourceNodeId: '', targetNodeId: '', relationType: '1:N', leftField: '', rightField: '' })
 }
 
 function removeEdgeRow(index: number) {
@@ -233,7 +311,8 @@ function handleConfirm() {
       sourceNodeId: edge.sourceNodeId,
       targetNodeId: edge.targetNodeId,
       relationType: edge.relationType,
-      joinKey: edge.joinKey || undefined
+      leftField: edge.leftField || undefined,
+      rightField: edge.rightField || undefined
     }))
 
   const fallbackEdges = graphEdges.length === 0 && graphNodes.length > 1
@@ -318,7 +397,7 @@ function handleConfirm() {
 
 .edge-row {
   display: grid;
-  grid-template-columns: 1fr 26px 1fr 110px 1fr auto;
+  grid-template-columns: 1fr 130px 26px 1fr 130px 90px auto;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
@@ -326,7 +405,7 @@ function handleConfirm() {
 
 .edge-select,
 .edge-rel,
-.edge-key {
+.edge-field {
   width: 100%;
 }
 

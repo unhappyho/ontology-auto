@@ -5,16 +5,16 @@
       <InfoCircleOutlined class="info-icon" />
     </div>
 
-    <!-- Tab 切换：业务实体 / 活动实体 -->
+    <!-- Tab 切换：业务要素 / 领域视图 -->
     <div class="entity-tree-tabs">
       <button
         :class="['tree-tab', { active: entityTreeMode === 'business' }]"
         @click="switchEntityTreeMode('business')"
-      >业务实体</button>
+      >业务要素</button>
       <button
         :class="['tree-tab', { active: entityTreeMode === 'activity' }]"
         @click="switchEntityTreeMode('activity')"
-      >活动实体</button>
+      >领域视图</button>
     </div>
 
     <div class="ontology-panel-body">
