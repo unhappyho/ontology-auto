@@ -239,13 +239,13 @@
                   ref="ruleInputRef"
                   type="file"
                   multiple
-                  accept=".pdf,.doc,.docx,.xlsx,.xls"
+                  accept=".pdf,.doc,.docx,.xlsx,.xls,.md"
                   style="display:none"
                   @change="handleFileChange($event, 'rule')"
                 />
                 <CloudUploadOutlined class="upload-zone-icon" />
                 <div class="upload-zone-text">点击上传或拖入文件</div>
-                <div class="upload-zone-formats">.pdf .doc .docx .xlsx</div>
+                <div class="upload-zone-formats">.pdf .doc .docx .xlsx .md</div>
               </div>
               <div v-if="ruleFiles.length > 0" class="file-list">
                 <div v-for="file in ruleFiles" :key="file.uid" class="file-item">
@@ -253,6 +253,41 @@
                   <span class="file-item-name">{{ file.name }}</span>
                   <span class="file-item-size">{{ formatSize(file.size) }}</span>
                   <DeleteOutlined class="file-item-delete" @click="removeFile('rule', file.uid)" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 需求文档 -->
+            <div class="attachment-col">
+              <div class="attachment-col-header">
+                <FileTextOutlined class="attachment-col-icon" style="color: #FA8C16;" />
+                <span class="attachment-col-title">需求文档</span>
+                <span class="attachment-col-count">{{ reqFiles.length }}/{{ MAX_FILES }}</span>
+              </div>
+              <div
+                :class="['upload-zone', { 'upload-zone--disabled': reqFiles.length >= MAX_FILES }]"
+                @click="reqFiles.length < MAX_FILES && triggerUpload('req')"
+                @dragover.prevent
+                @drop.prevent="handleDrop($event, 'req')"
+              >
+                <input
+                  ref="reqInputRef"
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xlsx,.xls,.md"
+                  style="display:none"
+                  @change="handleFileChange($event, 'req')"
+                />
+                <CloudUploadOutlined class="upload-zone-icon" />
+                <div class="upload-zone-text">点击上传或拖入文件</div>
+                <div class="upload-zone-formats">.pdf .doc .docx .xlsx .md</div>
+              </div>
+              <div v-if="reqFiles.length > 0" class="file-list">
+                <div v-for="file in reqFiles" :key="file.uid" class="file-item">
+                  <FileOutlined class="file-item-icon" style="color: #FA8C16;" />
+                  <span class="file-item-name">{{ file.name }}</span>
+                  <span class="file-item-size">{{ formatSize(file.size) }}</span>
+                  <DeleteOutlined class="file-item-delete" @click="removeFile('req', file.uid)" />
                 </div>
               </div>
             </div>
@@ -556,32 +591,34 @@ const MAX_FILES = 5
 
 const scriptFiles = ref<UploadedFile[]>([])
 const ruleFiles = ref<UploadedFile[]>([])
+const reqFiles = ref<UploadedFile[]>([])
 const apiFiles = ref<UploadedFile[]>([])
 
 const scriptInputRef = ref<HTMLInputElement | null>(null)
 const ruleInputRef = ref<HTMLInputElement | null>(null)
+const reqInputRef = ref<HTMLInputElement | null>(null)
 const apiInputRef = ref<HTMLInputElement | null>(null)
 
-function triggerUpload(type: 'script' | 'rule' | 'api') {
-  const map = { script: scriptInputRef, rule: ruleInputRef, api: apiInputRef }
+function triggerUpload(type: 'script' | 'rule' | 'req' | 'api') {
+  const map = { script: scriptInputRef, rule: ruleInputRef, req: reqInputRef, api: apiInputRef }
   map[type].value?.click()
 }
 
-function handleFileChange(event: Event, type: 'script' | 'rule' | 'api') {
+function handleFileChange(event: Event, type: 'script' | 'rule' | 'req' | 'api') {
   const input = event.target as HTMLInputElement
   if (!input.files) return
   addFiles(Array.from(input.files), type)
   input.value = ''
 }
 
-function handleDrop(event: DragEvent, type: 'script' | 'rule' | 'api') {
+function handleDrop(event: DragEvent, type: 'script' | 'rule' | 'req' | 'api') {
   const files = event.dataTransfer?.files
   if (!files) return
   addFiles(Array.from(files), type)
 }
 
-function addFiles(files: File[], type: 'script' | 'rule' | 'api') {
-  const targetRef = type === 'script' ? scriptFiles : type === 'rule' ? ruleFiles : apiFiles
+function addFiles(files: File[], type: 'script' | 'rule' | 'req' | 'api') {
+  const targetRef = type === 'script' ? scriptFiles : type === 'rule' ? ruleFiles : type === 'req' ? reqFiles : apiFiles
   const remaining = MAX_FILES - targetRef.value.length
   files.slice(0, remaining).forEach(file => {
     targetRef.value.push({
@@ -592,8 +629,8 @@ function addFiles(files: File[], type: 'script' | 'rule' | 'api') {
   })
 }
 
-function removeFile(type: 'script' | 'rule' | 'api', uid: string) {
-  const targetRef = type === 'script' ? scriptFiles : type === 'rule' ? ruleFiles : apiFiles
+function removeFile(type: 'script' | 'rule' | 'req' | 'api', uid: string) {
+  const targetRef = type === 'script' ? scriptFiles : type === 'rule' ? ruleFiles : type === 'req' ? reqFiles : apiFiles
   targetRef.value = targetRef.value.filter(f => f.uid !== uid)
 }
 
