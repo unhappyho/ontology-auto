@@ -505,6 +505,40 @@ export const useOntologyStore = defineStore('ontology', () => {
     }
   }
 
+  // 更新实体级别术语
+  function updateEntityTerm(entityId: string, termId: string, termName: string) {
+    const entity = findEntity(entityId)
+    if (entity) {
+      entity.termId = termId
+      entity.termName = termName
+    }
+  }
+
+  // 更新实体标识字段
+  function updateEntityKeyField(entityId: string, field: MappingField) {
+    const entity = findEntity(entityId)
+    if (!entity) return
+    entity.keyField = field.name
+    entity.keyFieldSource = normalizeBinding({
+      dataSource: field.dataSource,
+      database: field.database,
+      table: field.table
+    })
+  }
+
+  // 获取实体标识字段（用于 FieldMappingModal 预选回显）
+  function getEntityKeyField(entityId: string): MappingField | null {
+    const entity = findEntity(entityId)
+    if (!entity?.keyField) return null
+    return {
+      name: entity.keyField,
+      type: 'KEY',
+      dataSource: entity.keyFieldSource?.dataSource,
+      database: entity.keyFieldSource?.database,
+      table: entity.keyFieldSource?.table
+    }
+  }
+
   // 批量删除实体
   function batchDeleteEntities(entityIds: string[]) {
     const entities = ENTITY_DATA[_currentOntologyId.value]
@@ -572,6 +606,9 @@ export const useOntologyStore = defineStore('ontology', () => {
     batchDeleteEntities,
     addRelation,
     updateRelation,
-    deleteRelation
+    deleteRelation,
+    updateEntityTerm,
+    updateEntityKeyField,
+    getEntityKeyField
   }
 })

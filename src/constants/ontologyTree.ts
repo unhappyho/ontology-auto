@@ -264,15 +264,21 @@ export const ACTIVITY_DOMAIN_TREE: ActivityDomainNode[] = [
 
 export const ENTITY_DATA: Record<string, Entity[]> = {
   onto_crm_user_person: [
-    { id: 'e1', name: 'User', nameCn: '用户', isNew: true, entity_concept_type: '业务实体', entity_sub_class: '人', domain_view: null, attrs: [
+    { id: 'e1', name: 'User', nameCn: '用户', isNew: true, entity_concept_type: '业务实体', entity_sub_class: '人', domain_view: null,
+      termId: 'term_001', termName: '标准用户', keyField: 'user_id', keyFieldSource: { id: 'crm_api.crm_db.t_user', dataSource: 'crm_api', database: 'crm_db', table: 't_user' },
+      attrs: [
       { en: 'userId', cn: '用户ID', termId: 'term_001', termName: '标准用户ID' }, { en: 'userName', cn: '用户姓名', termId: 'term_010', termName: '用户名称' }, { en: 'phoneNumber', cn: '手机号码', termId: 'term_002', termName: '联系电话' },
       { en: 'email', cn: '邮箱', termId: 'term_011', termName: '电子邮箱' }, { en: 'status', cn: '账户状态', termId: 'term_012', termName: '账号状态' }, { en: 'createTime', cn: '注册时间', termId: 'term_013', termName: '创建时间' }
     ]},
-    { id: 'e2', name: 'UserAuth', nameCn: '认证信息', isNew: true, entity_concept_type: '业务实体', entity_sub_class: '人', domain_view: null, attrs: [
+    { id: 'e2', name: 'UserAuth', nameCn: '认证信息', isNew: true, entity_concept_type: '业务实体', entity_sub_class: '人', domain_view: null,
+      termId: 'term_014', termName: '用户认证', keyField: 'auth_id', keyFieldSource: { id: 'crm_api.crm_db.t_user_auth', dataSource: 'crm_api', database: 'crm_db', table: 't_user_auth' },
+      attrs: [
       { en: 'authId', cn: '认证ID', termId: 'term_014', termName: '认证标识' }, { en: 'userId', cn: '用户ID', termId: 'term_001', termName: '标准用户ID' }, { en: 'idType', cn: '证件类型', termId: 'term_015', termName: '证件类别' },
       { en: 'idNo', cn: '证件号码', termId: 'term_003', termName: '身份证号' }, { en: 'authStatus', cn: '实名状态', termId: 'term_016', termName: '实名认证状态' }
     ]},
-    { id: 'e3', name: 'UserContact', nameCn: '联系方式', isNew: false, entity_concept_type: '业务实体', entity_sub_class: '人', domain_view: null, attrs: [
+    { id: 'e3', name: 'UserContact', nameCn: '联系方式', isNew: false, entity_concept_type: '业务实体', entity_sub_class: '人', domain_view: null,
+      termId: 'term_017', termName: '联系方式', keyField: 'contact_id', keyFieldSource: { id: 'crm_api.crm_db.t_user_contact', dataSource: 'crm_api', database: 'crm_db', table: 't_user_contact' },
+      attrs: [
       { en: 'contactId', cn: '联系ID', termId: 'term_017', termName: '联系方式ID' }, { en: 'userId', cn: '用户ID', termId: 'term_001', termName: '标准用户ID' }, { en: 'contactType', cn: '联系类型', termId: 'term_018', termName: '联系方式类型' },
       { en: 'contactValue', cn: '联系内容', termId: 'term_019', termName: '联系方式内容' }, { en: 'isPrimary', cn: '是否主要', termId: 'term_020', termName: '是否主联系方式' }
     ]}
@@ -288,23 +294,33 @@ export const ENTITY_DATA: Record<string, Entity[]> = {
     ]}
   ],
   onto_order_main: [
-    { id: 'e1', name: 'Order', nameCn: '订单', isNew: true, entity_concept_type: '活动实体', entity_sub_class: '领域活动实体', domain_view: '销售领域', attrs: [
+    { id: 'e1', name: 'Order', nameCn: '订单', isNew: true, entity_concept_type: '活动实体', entity_sub_class: '领域活动实体', domain_view: '销售领域',
+      termId: 'term_050', termName: '销售订单', keyField: 'order_id', keyFieldSource: { id: 'crm_api.order_db.t_order', dataSource: 'crm_api', database: 'order_db', table: 't_order' },
+      attrs: [
       { en: 'orderId', cn: '订单ID', termId: 'term_050', termName: '订单编号' }, { en: 'userId', cn: '用户ID', termId: 'term_001', termName: '标准用户ID' }, { en: 'totalAmount', cn: '订单总额', termId: 'term_051', termName: '订单总金额' },
       { en: 'payChannel', cn: '支付渠道', termId: 'term_052', termName: '支付方式' }, { en: 'orderStatus', cn: '订单状态', termId: 'term_053', termName: '订单状态' }, { en: 'createTime', cn: '创建时间', termId: 'term_013', termName: '创建时间' }
     ]},
-    { id: 'e2', name: 'OrderItem', nameCn: '订单明细', isNew: true, entity_concept_type: '活动实体', entity_sub_class: '领域活动实体', domain_view: '销售领域', attrs: [
+    { id: 'e2', name: 'OrderItem', nameCn: '订单明细', isNew: true, entity_concept_type: '活动实体', entity_sub_class: '领域活动实体', domain_view: '销售领域',
+      termId: 'term_054', termName: '订单明细', keyField: 'item_id', keyFieldSource: { id: 'crm_api.order_db.t_order_item', dataSource: 'crm_api', database: 'order_db', table: 't_order_item' },
+      attrs: [
       { en: 'itemId', cn: '明细ID', termId: 'term_054', termName: '订单明细ID' }, { en: 'orderId', cn: '订单ID', termId: 'term_050', termName: '订单编号' }, { en: 'productId', cn: '产品ID', termId: 'term_055', termName: '商品标识' },
       { en: 'qty', cn: '数量', termId: 'term_056', termName: '商品数量' }, { en: 'unitPrice', cn: '单价', termId: 'term_057', termName: '商品单价' }, { en: 'subtotal', cn: '小计', termId: 'term_058', termName: '明细小计金额' }
     ]},
-    { id: 'e3', name: 'Payment', nameCn: '支付记录', isNew: true, entity_concept_type: '活动实体', entity_sub_class: '领域活动实体', domain_view: '销售领域', attrs: [
+    { id: 'e3', name: 'Payment', nameCn: '支付记录', isNew: true, entity_concept_type: '活动实体', entity_sub_class: '领域活动实体', domain_view: '销售领域',
+      termId: 'term_059', termName: '支付交易', keyField: 'pay_id', keyFieldSource: { id: 'billing_dw.billing_db.t_payment', dataSource: 'billing_dw', database: 'billing_db', table: 't_payment' },
+      attrs: [
       { en: 'payId', cn: '支付ID', termId: 'term_059', termName: '支付交易ID' }, { en: 'orderId', cn: '订单ID', termId: 'term_050', termName: '订单编号' }, { en: 'amount', cn: '支付金额', termId: 'term_060', termName: '实付金额' },
       { en: 'transNo', cn: '交易流水号', termId: 'term_061', termName: '支付流水号' }, { en: 'payTime', cn: '支付时间', termId: 'term_062', termName: '支付完成时间' }
     ]},
-    { id: 'e4', name: 'Delivery', nameCn: '派发记录', isNew: false, entity_concept_type: '活动实体', entity_sub_class: '领域活动实体', domain_view: '交付领域', attrs: [
+    { id: 'e4', name: 'Delivery', nameCn: '派发记录', isNew: false, entity_concept_type: '活动实体', entity_sub_class: '领域活动实体', domain_view: '交付领域',
+      termId: 'term_063', termName: '配送单', keyField: 'deliver_id', keyFieldSource: { id: 'crm_api.order_db.t_delivery', dataSource: 'crm_api', database: 'order_db', table: 't_delivery' },
+      attrs: [
       { en: 'deliverId', cn: '派发ID', termId: 'term_063', termName: '配送单ID' }, { en: 'orderId', cn: '订单ID', termId: 'term_050', termName: '订单编号' }, { en: 'activateTime', cn: '激活时间', termId: 'term_064', termName: '产品激活时间' },
       { en: 'expireTime', cn: '到期时间', termId: 'term_065', termName: '服务到期时间' }, { en: 'deliverStatus', cn: '派发状态', termId: 'term_066', termName: '配送状态' }
     ]},
-    { id: 'e5', name: 'OrderLog', nameCn: '订单日志', isNew: false, entity_concept_type: '活动实体', entity_sub_class: '领域分析实体', domain_view: '销售领域', attrs: [
+    { id: 'e5', name: 'OrderLog', nameCn: '订单日志', isNew: false, entity_concept_type: '活动实体', entity_sub_class: '领域分析实体', domain_view: '销售领域',
+      termId: 'term_067', termName: '订单操作日志', keyField: 'log_id', keyFieldSource: { id: 'crm_api.order_db.t_order_log', dataSource: 'crm_api', database: 'order_db', table: 't_order_log' },
+      attrs: [
       { en: 'logId', cn: '日志ID', termId: 'term_067', termName: '操作日志ID' }, { en: 'orderId', cn: '订单ID', termId: 'term_050', termName: '订单编号' }, { en: 'opType', cn: '操作类型', termId: 'term_068', termName: '操作业务类型' },
       { en: 'opTime', cn: '操作时间', termId: 'term_069', termName: '操作发生时间' }, { en: 'opUser', cn: '操作人', termId: 'term_070', termName: '操作人账号' }
     ]}

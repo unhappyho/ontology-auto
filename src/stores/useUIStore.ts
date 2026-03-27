@@ -26,8 +26,8 @@ export const useUIStore = defineStore('ui', () => {
   const renameNodeId = ref('')
   const movingEntityData = ref<{ id: string; name: string; nameCn: string; domain: string } | null>(null)
   const entityTableModalData = ref<{ entityId: string; entityName: string } | null>(null)
-  const termLinkModalData = ref<{ entityId: string; attrName: string } | null>(null)
-  const fieldMappingModalData = ref<{ entityId: string; attrName: string } | null>(null)
+  const termLinkModalData = ref<{ entityId: string; attrName: string; isEntityLevel?: boolean } | null>(null)
+  const fieldMappingModalData = ref<{ entityId: string; attrName: string; isEntityLevel?: boolean } | null>(null)
   const relationModalData = ref<{
     id?: string
     mode: 'add' | 'edit'
@@ -118,7 +118,7 @@ export const useUIStore = defineStore('ui', () => {
     entityTableModalData.value = null
   }
 
-  function openTermLinkModal(data: { entityId: string; attrName: string }) {
+  function openTermLinkModal(data: { entityId: string; attrName: string; isEntityLevel?: boolean }) {
     termLinkModalData.value = data
     termLinkModalVisible.value = true
   }
@@ -127,7 +127,7 @@ export const useUIStore = defineStore('ui', () => {
     termLinkModalData.value = null
   }
 
-  function openFieldMappingModal(data: { entityId: string; attrName: string }) {
+  function openFieldMappingModal(data: { entityId: string; attrName: string; isEntityLevel?: boolean }) {
     fieldMappingModalData.value = data
     fieldMappingModalVisible.value = true
   }

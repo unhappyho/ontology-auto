@@ -8,7 +8,7 @@
   >
     <div class="field-select-content">
       <div class="field-info">
-        当前映射属性: <strong>{{ modalData?.attrName }}</strong>
+        {{ modalData?.isEntityLevel ? '实体标识字段映射' : `当前映射属性: ${modalData?.attrName}` }}
       </div>
       <div class="field-search">
         <a-input v-model:value="searchText" placeholder="搜索字段名/来源..." allow-clear>
@@ -82,12 +82,16 @@ watch(
     selectedFieldKey.value = ''
 
     const entityId = modalData.value?.entityId
-    const attrName = modalData.value?.attrName
-    if (!entityId || !attrName) return
+    if (!entityId) return
 
-    const currentField = ontologyStore.getMappedFieldForAttr(entityId, attrName)
-    if (currentField) {
-      selectedFieldKey.value = fieldKey(currentField)
+    if (modalData.value?.isEntityLevel) {
+      const keyField = ontologyStore.getEntityKeyField(entityId)
+      if (keyField) selectedFieldKey.value = fieldKey(keyField)
+    } else {
+      const attrName = modalData.value?.attrName
+      if (!attrName) return
+      const currentField = ontologyStore.getMappedFieldForAttr(entityId, attrName)
+      if (currentField) selectedFieldKey.value = fieldKey(currentField)
     }
   },
   { immediate: true }
@@ -109,11 +113,16 @@ function handleCancel() {
 
 function handleConfirm() {
   const entityId = modalData.value?.entityId
-  const attrName = modalData.value?.attrName
   const selectedField = findSelectedField()
-  if (!entityId || !attrName || !selectedField) return
+  if (!entityId || !selectedField) return
 
-  ontologyStore.updateEntityAttrMappedField(entityId, attrName, selectedField)
+  if (modalData.value?.isEntityLevel) {
+    ontologyStore.updateEntityKeyField(entityId, selectedField)
+  } else {
+    const attrName = modalData.value?.attrName
+    if (!attrName) return
+    ontologyStore.updateEntityAttrMappedField(entityId, attrName, selectedField)
+  }
   handleCancel()
 }
 </script>

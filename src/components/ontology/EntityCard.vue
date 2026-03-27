@@ -16,19 +16,16 @@
           :class="['tag-concept-type', entity.entity_concept_type === '活动实体' ? 'tag-activity' : 'tag-business']"
         >{{ entity.entity_sub_class }}</span>
         <span v-if="entity.entity_concept_type === '活动实体' && entity.domain_view" class="tag-domain-view">{{ entity.domain_view }}</span>
-        <!-- 物理字段速览 -->
-        <div v-if="fieldSummary.length > 0" class="field-summary" @click.stop>
-          <span
-            v-for="(item, idx) in fieldSummary.slice(0, 4)"
-            :key="idx"
-            class="field-chip"
-            :title="`${item.attrCn} → ${item.fieldName}（${item.table}）`"
-          >
-            <span class="field-chip-name">{{ item.fieldName }}</span>
-            <span v-if="item.table" class="field-chip-table">{{ item.table }}</span>
-          </span>
-          <span v-if="fieldSummary.length > 4" class="field-chip-more">+{{ fieldSummary.length - 4 }}</span>
-        </div>
+        <!-- 实体级别术语关联 -->
+        <span class="entity-term-chip" @click.stop="handleEditEntityTerm" title="点击调整实体术语关联">
+          <LinkOutlined />
+          <span>{{ entity.termName || '—' }}</span>
+        </span>
+        <!-- 实体标识字段 -->
+        <span class="entity-field-chip" @click.stop="handleEditEntityField" title="点击调整标识字段映射">
+          <span class="chip-arrow">→</span>
+          <span>{{ entityKeyFieldDisplay || '—' }}</span>
+        </span>
       </div>
 
       <div class="entity-card-right">
@@ -197,6 +194,14 @@ const selectedAttrs = ref<string[]>([])
 const isLoading = computed(() => ontologyStore.reextractingEntityId === props.entity.id)
 const entitySources = computed(() => ontologyStore.getEntitySources(props.entity.id))
 const tableGraph = computed(() => ontologyStore.getEntityTableGraph(props.entity.id))
+const entityKeyFieldDisplay = computed(() => {
+  if (!props.entity.keyField) return ''
+  const src = props.entity.keyFieldSource
+  if (src) {
+    return `${props.entity.keyField} · ${src.database}.${src.table}`
+  }
+  return props.entity.keyField
+})
 
 const graphWidth = computed(() => Math.max(300, tableGraph.value.nodes.length * 150))
 
@@ -265,23 +270,16 @@ function getMappedFieldSource(attrName: string): string {
   return ontologyStore.formatSourcePath(mapped)
 }
 
-// 物理字段摘要：每个属性映射的字段名 + 所属表，过滤掉没有映射的
-const fieldSummary = computed(() =>
-  props.entity.attrs
-    .map(attr => {
-      const field = getMappedField(attr.en)
-      if (!field) return null
-      return {
-        attrCn: attr.cn,
-        fieldName: field.name,
-        table: field.table || ''
-      }
-    })
-    .filter(Boolean) as Array<{ attrCn: string; fieldName: string; table: string }>
-)
-
 function toggleExpand() {
   expanded.value = !expanded.value
+}
+
+function handleEditEntityTerm() {
+  uiStore.openTermLinkModal({ entityId: props.entity.id, attrName: '', isEntityLevel: true })
+}
+
+function handleEditEntityField() {
+  uiStore.openFieldMappingModal({ entityId: props.entity.id, attrName: '', isEntityLevel: true })
 }
 
 function handleSelect(e: any) {
@@ -802,47 +800,47 @@ function handleDelete() {
   color: #595959;
 }
 
-.field-summary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-left: 4px;
-}
-
-.field-chip {
+.entity-term-chip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+  font-size: 10px;
+  color: #722ed1;
+  cursor: pointer;
   padding: 1px 6px;
+  background: #f4eeff;
   border-radius: 3px;
-  font-size: 10px;
-  background: #f5f5f5;
-  border: 1px solid #d9d9d9;
-  color: var(--text-regular);
-  cursor: default;
+  border: 1px solid #d3b4ff;
+  flex-shrink: 0;
   white-space: nowrap;
+  transition: background 0.15s;
 }
 
-.field-chip-name {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-weight: 500;
-  color: #262626;
+.entity-term-chip:hover {
+  background: #e5dbff;
 }
 
-.field-chip-table {
-  color: #8c8c8c;
+.entity-field-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 10px;
+  color: var(--text-regular);
+  cursor: pointer;
+  padding: 1px 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background 0.15s;
 }
 
-.field-chip-table::before {
-  content: '·';
-  margin-right: 2px;
+.entity-field-chip:hover {
+  background: #e6e6e6;
 }
 
-.field-chip-more {
-  font-size: 10px;
+.entity-field-chip .chip-arrow {
   color: var(--text-secondary);
-  padding: 1px 4px;
 }
 </style>

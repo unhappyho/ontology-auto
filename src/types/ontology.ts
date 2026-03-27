@@ -91,6 +91,12 @@ export interface Entity {
   entity_concept_type?: EntityConceptType
   entity_sub_class?: EntitySubClass
   domain_view?: DomainView | null
+  // 实体级别术语关联
+  termId?: string
+  termName?: string
+  // 实体标识字段映射
+  keyField?: string
+  keyFieldSource?: DataSourceBinding
 }
 
 export interface MappingField {

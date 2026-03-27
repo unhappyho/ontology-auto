@@ -7,6 +7,9 @@
     @cancel="handleCancel"
   >
     <div class="term-select-content">
+      <div class="term-context">
+        {{ modalData?.isEntityLevel ? '为实体名称关联标准术语' : `属性：${modalData?.attrName}` }}
+      </div>
       <div class="term-search">
         <a-input
           v-model:value="searchText"
@@ -56,9 +59,10 @@ import {
   SearchOutlined,
   CheckOutlined
 } from '@ant-design/icons-vue'
-import { useUIStore } from '@/stores'
+import { useUIStore, useOntologyStore } from '@/stores'
 
 const uiStore = useUIStore()
+const ontologyStore = useOntologyStore()
 
 const visible = computed({
   get: () => uiStore.termLinkModalVisible,
@@ -127,7 +131,6 @@ function handleCancel() {
 function handleConfirm() {
   if (!selectedTermId.value) return
 
-  // 找到选中的术语
   let selectedTerm: { id: string; name: string } | undefined
   for (const cat of termCategories.value) {
     const term = cat.terms.find(t => t.id === selectedTermId.value)
@@ -137,11 +140,12 @@ function handleConfirm() {
     }
   }
 
-  // 更新属性的术语关联
-  if (modalData.value?.attrName) {
-    // 这里需要调用 ontologyStore 更新
-    // 暂时通过事件或直接修改实现
-    console.log('Selected term:', selectedTerm)
+  if (!selectedTerm) return
+
+  if (modalData.value?.isEntityLevel && modalData.value.entityId) {
+    ontologyStore.updateEntityTerm(modalData.value.entityId, selectedTerm.id, selectedTerm.name)
+  } else if (modalData.value?.attrName) {
+    // 属性级别（预留，暂不实现）
   }
 
   handleCancel()
@@ -153,6 +157,14 @@ function handleConfirm() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.term-context {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
 }
 
 .term-search {
