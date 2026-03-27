@@ -16,13 +16,18 @@
           :class="['tag-concept-type', entity.entity_concept_type === '活动实体' ? 'tag-activity' : 'tag-business']"
         >{{ entity.entity_sub_class }}</span>
         <span v-if="entity.entity_concept_type === '活动实体' && entity.domain_view" class="tag-domain-view">{{ entity.domain_view }}</span>
-
-        <div class="entity-field-chips" v-if="entityFieldChips.length > 0" @click.stop>
-          <span v-for="chip in entityFieldChips" :key="chip.key" class="entity-field-chip" :title="chip.tooltip">
-            <span class="chip-field">{{ chip.fieldName }}</span>
-            <span class="chip-sep">·</span>
-            <span class="chip-table">{{ chip.table }}</span>
+        <!-- 物理字段速览 -->
+        <div v-if="fieldSummary.length > 0" class="field-summary" @click.stop>
+          <span
+            v-for="(item, idx) in fieldSummary.slice(0, 4)"
+            :key="idx"
+            class="field-chip"
+            :title="`${item.attrCn} → ${item.fieldName}（${item.table}）`"
+          >
+            <span class="field-chip-name">{{ item.fieldName }}</span>
+            <span v-if="item.table" class="field-chip-table">{{ item.table }}</span>
           </span>
+          <span v-if="fieldSummary.length > 4" class="field-chip-more">+{{ fieldSummary.length - 4 }}</span>
         </div>
       </div>
 
@@ -193,28 +198,6 @@ const isLoading = computed(() => ontologyStore.reextractingEntityId === props.en
 const entitySources = computed(() => ontologyStore.getEntitySources(props.entity.id))
 const tableGraph = computed(() => ontologyStore.getEntityTableGraph(props.entity.id))
 
-// 头部物理字段信息 chips（最多3个，去重）
-const entityFieldChips = computed(() => {
-  const seen = new Set<string>()
-  const chips: Array<{ key: string; fieldName: string; table: string; tooltip: string }> = []
-  for (const attr of props.entity.attrs) {
-    if (chips.length >= 3) break
-    const field = ontologyStore.getMappedFieldForAttr(props.entity.id, attr.en)
-    if (!field || !field.name) continue
-    const tableName = field.table || ''
-    const key = `${field.name}|${tableName}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    chips.push({
-      key,
-      fieldName: field.name,
-      table: tableName,
-      tooltip: `${attr.cn}（${attr.en}）→ ${field.name}${tableName ? ' · ' + tableName : ''}`
-    })
-  }
-  return chips
-})
-
 const graphWidth = computed(() => Math.max(300, tableGraph.value.nodes.length * 150))
 
 const graphNodesWithPos = computed(() => {
@@ -281,6 +264,21 @@ function getMappedFieldSource(attrName: string): string {
   if (!mapped) return '-'
   return ontologyStore.formatSourcePath(mapped)
 }
+
+// 物理字段摘要：每个属性映射的字段名 + 所属表，过滤掉没有映射的
+const fieldSummary = computed(() =>
+  props.entity.attrs
+    .map(attr => {
+      const field = getMappedField(attr.en)
+      if (!field) return null
+      return {
+        attrCn: attr.cn,
+        fieldName: field.name,
+        table: field.table || ''
+      }
+    })
+    .filter(Boolean) as Array<{ attrCn: string; fieldName: string; table: string }>
+)
 
 function toggleExpand() {
   expanded.value = !expanded.value
@@ -804,45 +802,47 @@ function handleDelete() {
   color: #595959;
 }
 
-/* 头部物理字段 chips */
-.entity-field-chips {
+.field-summary {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   margin-left: 4px;
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
 }
 
-.entity-field-chip {
+.field-chip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 1px 7px;
+  padding: 1px 6px;
   border-radius: 3px;
   font-size: 10px;
   background: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  color: #595959;
-  white-space: nowrap;
-  flex-shrink: 0;
+  border: 1px solid #d9d9d9;
+  color: var(--text-regular);
   cursor: default;
+  white-space: nowrap;
 }
 
-.chip-field {
+.field-chip-name {
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 10px;
-  color: #262626;
   font-weight: 500;
+  color: #262626;
 }
 
-.chip-sep {
-  color: #bfbfbf;
-}
-
-.chip-table {
-  font-size: 10px;
+.field-chip-table {
   color: #8c8c8c;
+  font-size: 10px;
+}
+
+.field-chip-table::before {
+  content: '·';
+  margin-right: 2px;
+}
+
+.field-chip-more {
+  font-size: 10px;
+  color: var(--text-secondary);
+  padding: 1px 4px;
 }
 </style>
