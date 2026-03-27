@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div :class="['entity-card', { expanded, 'reextract-anim': reextractAnimation }]">
     <div v-if="isLoading" class="entity-loading-mask">
       <LoadingOutlined spin style="font-size: 18px; color: #722ed1;" />
@@ -63,10 +63,20 @@
             删除选中 ({{ selectedAttrs.length }})
           </a-button>
         </div>
+        <a-button type="text" size="small" class="add-attr-btn" @click="handleShowAddRow">
+          <PlusOutlined />
+          新增
+        </a-button>
       </div>
 
       <div class="source-section">
-        <div class="source-title">涉及来源</div>
+        <div class="source-header">
+          <span class="source-title">涉及来源</span>
+          <span v-if="hasTableJoins" class="graph-toggle-btn" @click.stop="showGraph = !showGraph">
+            <ShareAltOutlined />
+            {{ showGraph ? '收起关联' : '表关联关系' }}
+          </span>
+        </div>
         <div class="source-list">
           <span v-for="source in entitySources" :key="source.id" class="source-chip">
             {{ formatSourcePath(source) }}
@@ -74,33 +84,19 @@
         </div>
       </div>
 
-      <div class="graph-section" v-if="graphNodesWithPos.length > 0">
-        <div class="source-title">来源表关联关系</div>
-        <div class="graph-wrap">
-          <svg :viewBox="`0 0 ${graphWidth} 140`" preserveAspectRatio="xMidYMid meet" class="graph-svg">
-            <line
-              v-for="edge in graphEdgesWithPos"
-              :key="edge.id"
-              :x1="edge.x1"
-              :y1="edge.y1"
-              :x2="edge.x2"
-              :y2="edge.y2"
-              class="graph-edge"
-            />
-            <text
-              v-for="edge in graphEdgesWithPos"
-              :key="`label-${edge.id}`"
-              :x="edge.mx"
-              :y="edge.my"
-              text-anchor="middle"
-              class="graph-edge-label"
-            >{{ edge.label }}</text>
-            <g v-for="node in graphNodesWithPos" :key="node.id">
-              <circle :cx="node.x" :cy="node.y" r="9" class="graph-node-dot" />
-              <text :x="node.x" :y="node.y + 24" text-anchor="middle" class="graph-node-label">{{ node.source.table }}</text>
-            </g>
-          </svg>
-        </div>
+      <!-- 来源表关联关系（CSS 横排，按需展开） -->
+      <div v-if="showGraph && hasTableJoins" class="table-graph-view">
+        <template v-for="(node, idx) in tableGraph.nodes" :key="node.id">
+          <div class="table-node">
+            <div class="table-node-name">{{ node.source.table }}</div>
+            <div class="table-node-db">{{ node.source.database }}</div>
+          </div>
+          <div v-if="idx < tableGraph.nodes.length - 1" class="join-connector">
+            <div class="join-line"></div>
+            <div class="join-label">{{ getEdgeLabel(idx) }}</div>
+            <div class="join-arrow">▶</div>
+          </div>
+        </template>
       </div>
 
       <div class="attr-table-wrapper">
@@ -126,11 +122,31 @@
                 </div>
               </td>
               <td class="col-attr">
-                <span class="attr-en">
-                  {{ attr.en }}
-                  <span v-if="!entity.isNew && attr.isNew" class="attr-new-badge">新</span>
-                </span>
-                <span class="attr-cn">/ {{ attr.cn }}</span>
+                <template v-if="editingAttrEn === attr.en">
+                  <div class="attr-edit-row">
+                    <input
+                      v-model="editingAttrForm.en"
+                      class="attr-input"
+                      placeholder="英文名"
+                      @keydown.enter="saveEditAttr"
+                      @keydown.esc="cancelEditAttr"
+                    />
+                    <input
+                      v-model="editingAttrForm.cn"
+                      class="attr-input"
+                      placeholder="中文名"
+                      @keydown.enter="saveEditAttr"
+                      @keydown.esc="cancelEditAttr"
+                    />
+                  </div>
+                </template>
+                <template v-else>
+                  <span class="attr-en">
+                    {{ attr.en }}
+                    <span v-if="!entity.isNew && attr.isNew" class="attr-new-badge">新</span>
+                  </span>
+                  <span class="attr-cn">/ {{ attr.cn }}</span>
+                </template>
               </td>
               <td class="col-field">
                 <div class="attr-field" @click="handleEditField(attr)" title="点击调整物理字段映射">
@@ -141,9 +157,74 @@
                 </div>
               </td>
               <td class="col-action">
-                <a-button type="text" danger size="small" class="attr-delete-btn" @click="handleDeleteAttr(attr.en)">
-                  <DeleteOutlined />
-                </a-button>
+                <div class="attr-action-btns">
+                  <a-button
+                    type="text"
+                    size="small"
+                    class="attr-edit-btn"
+                    @click="handleStartEditAttr(attr)"
+                    v-if="editingAttrEn !== attr.en"
+                  >
+                    <EditOutlined />
+                  </a-button>
+                  <template v-if="editingAttrEn === attr.en">
+                    <a-button type="text" size="small" class="attr-save-btn" @click="saveEditAttr">
+                      <CheckOutlined />
+                    </a-button>
+                    <a-button type="text" size="small" @click="cancelEditAttr">
+                      <CloseOutlined />
+                    </a-button>
+                  </template>
+                  <a-button type="text" danger size="small" class="attr-delete-btn" @click="handleDeleteAttr(attr.en)" v-if="editingAttrEn !== attr.en">
+                    <DeleteOutlined />
+                  </a-button>
+                </div>
+              </td>
+            </tr>
+            <!-- 新增行 -->
+            <tr v-if="showAddRow" class="attr-row add-row">
+              <td class="col-checkbox"></td>
+              <td class="col-term">
+                <div class="attr-term add-row-chip" @click="handlePickAddTerm" title="选择关联术语">
+                  <LinkOutlined />
+                  <span>{{ addAttrForm.termName || '选择术语' }}</span>
+                </div>
+              </td>
+              <td class="col-attr">
+                <div class="attr-edit-row">
+                  <input
+                    v-model="addAttrForm.en"
+                    class="attr-input"
+                    placeholder="英文名"
+                    ref="addEnInputRef"
+                    @keydown.enter="saveAddAttr"
+                    @keydown.esc="cancelAddAttr"
+                  />
+                  <input
+                    v-model="addAttrForm.cn"
+                    class="attr-input"
+                    placeholder="中文名"
+                    @keydown.enter="saveAddAttr"
+                    @keydown.esc="cancelAddAttr"
+                  />
+                </div>
+              </td>
+              <td class="col-field">
+                <div class="attr-field add-row-chip" @click="handlePickAddField" title="选择物理字段">
+                  <span class="arrow">→</span>
+                  <span class="field-name">{{ addAttrForm.mappedField?.name || '选择字段' }}</span>
+                  <SettingOutlined class="edit-icon" />
+                </div>
+              </td>
+              <td class="col-action">
+                <div class="attr-action-btns">
+                  <a-button type="text" size="small" class="attr-save-btn" @click="saveAddAttr">
+                    <CheckOutlined />
+                  </a-button>
+                  <a-button type="text" size="small" @click="cancelAddAttr">
+                    <CloseOutlined />
+                  </a-button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -154,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import {
   StarFilled,
   CheckCircleOutlined,
@@ -165,10 +246,15 @@ import {
   LinkOutlined,
   DatabaseOutlined,
   SettingOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  PlusOutlined,
+  EditOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  ShareAltOutlined
 } from '@ant-design/icons-vue'
 import { Popconfirm, message } from 'ant-design-vue'
-import type { Entity, EntityAttr } from '@/types'
+import type { Entity, EntityAttr, MappingField } from '@/types'
 import { useUIStore, useOntologyStore } from '@/stores'
 
 interface Props {
@@ -203,43 +289,19 @@ const entityKeyFieldDisplay = computed(() => {
   return props.entity.keyField
 })
 
-const graphWidth = computed(() => Math.max(300, tableGraph.value.nodes.length * 150))
+const hasTableJoins = computed(() => tableGraph.value.edges.length > 0)
+const showGraph = ref(false)
 
-const graphNodesWithPos = computed(() => {
-  const nodes = tableGraph.value.nodes
-  if (!nodes.length) return []
-  const gap = graphWidth.value / (nodes.length + 1)
-  return nodes.map((node, idx) => ({
-    ...node,
-    x: Math.round((idx + 1) * gap),
-    y: 50
-  }))
-})
+// 编辑属性状态
+const editingAttrEn = ref<string | null>(null)
+const editingAttrForm = ref({ en: '', cn: '' })
 
-const graphEdgesWithPos = computed(() => {
-  const nodeMap = new Map(graphNodesWithPos.value.map(node => [node.id, node]))
-  return tableGraph.value.edges
-    .map(edge => {
-      const source = nodeMap.get(edge.sourceNodeId)
-      const target = nodeMap.get(edge.targetNodeId)
-      if (!source || !target) return null
-      const mx = Math.round((source.x + target.x) / 2)
-      const my = Math.round((source.y + target.y) / 2) - 8
-      const rel = edge.relationType || '1:N'
-      const label = edge.joinKey ? `${rel} · ${edge.joinKey}` : rel
-      return {
-        id: edge.id,
-        x1: source.x,
-        y1: source.y,
-        x2: target.x,
-        y2: target.y,
-        mx,
-        my,
-        label
-      }
-    })
-    .filter(Boolean) as Array<{ id: string; x1: number; y1: number; x2: number; y2: number; mx: number; my: number; label: string }>
+// 新增属性状态
+const showAddRow = ref(false)
+const addAttrForm = ref<{ en: string; cn: string; termId: string; termName: string; mappedField: MappingField | null }>({
+  en: '', cn: '', termId: '', termName: '', mappedField: null
 })
+const addEnInputRef = ref<HTMLInputElement | null>(null)
 
 const selectAllAttrs = computed({
   get: () => selectedAttrs.value.length === props.entity.attrs.length && props.entity.attrs.length > 0,
@@ -251,6 +313,13 @@ const selectAllAttrs = computed({
     }
   }
 })
+
+function getEdgeLabel(nodeIdx: number): string {
+  const edge = tableGraph.value.edges[nodeIdx]
+  if (!edge) return ''
+  const rel = edge.relationType || '1:N'
+  return edge.joinKey ? `${rel} · ${edge.joinKey}` : rel
+}
 
 function formatSourcePath(source: any): string {
   return ontologyStore.formatSourcePath(source)
@@ -355,6 +424,77 @@ function handleBatchDeleteAttrs() {
 function handleDelete() {
   ontologyStore.deleteEntity(props.entity.id)
   message.success(`已删除实体: ${props.entity.nameCn || props.entity.name}`)
+}
+
+// 编辑属性
+function handleStartEditAttr(attr: EntityAttr) {
+  editingAttrEn.value = attr.en
+  editingAttrForm.value = { en: attr.en, cn: attr.cn }
+}
+
+function saveEditAttr() {
+  const oldEn = editingAttrEn.value
+  if (!oldEn) return
+  const { en, cn } = editingAttrForm.value
+  if (!en.trim()) {
+    message.warning('属性英文名不能为空')
+    return
+  }
+  ontologyStore.updateEntityAttr(props.entity.id, oldEn, en.trim(), cn.trim())
+  editingAttrEn.value = null
+}
+
+function cancelEditAttr() {
+  editingAttrEn.value = null
+}
+
+// 新增属性
+function handleShowAddRow() {
+  showAddRow.value = true
+  addAttrForm.value = { en: '', cn: '', termId: '', termName: '', mappedField: null }
+  nextTick(() => addEnInputRef.value?.focus())
+}
+
+function handlePickAddTerm() {
+  uiStore.openTermLinkModal({
+    entityId: props.entity.id,
+    attrName: '__add_new__',
+    onSelect: (termId: string, termName: string) => {
+      addAttrForm.value.termId = termId
+      addAttrForm.value.termName = termName
+    }
+  })
+}
+
+function handlePickAddField() {
+  uiStore.openFieldMappingModal({
+    entityId: props.entity.id,
+    attrName: '__add_new__',
+    onSelect: (field: MappingField) => {
+      addAttrForm.value.mappedField = field
+    }
+  })
+}
+
+function saveAddAttr() {
+  const { en, cn, termId, termName, mappedField } = addAttrForm.value
+  if (!en.trim()) {
+    message.warning('属性英文名不能为空')
+    return
+  }
+  ontologyStore.addEntityAttr(props.entity.id, {
+    en: en.trim(),
+    cn: cn.trim(),
+    termId: termId || undefined,
+    termName: termName || undefined,
+    mappedField: mappedField || undefined
+  })
+  message.success(`已新增属性: ${en.trim()}`)
+  showAddRow.value = false
+}
+
+function cancelAddAttr() {
+  showAddRow.value = false
 }
 </script>
 
@@ -570,15 +710,46 @@ function handleDelete() {
   gap: 12px;
 }
 
-.source-section,
-.graph-section {
+.add-attr-btn {
+  font-size: 11px;
+  color: var(--primary-color);
+  padding: 0 6px;
+  height: 22px;
+}
+
+.source-section {
   margin-bottom: 10px;
+}
+
+.source-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .source-title {
   font-size: 11px;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+}
+
+.graph-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: #722ed1;
+  cursor: pointer;
+  padding: 1px 6px;
+  background: #f4eeff;
+  border-radius: 3px;
+  border: 1px solid #d3b4ff;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.graph-toggle-btn:hover {
+  background: #e5dbff;
 }
 
 .source-list {
@@ -598,45 +769,71 @@ function handleDelete() {
   color: #1d39c4;
 }
 
-.graph-wrap {
+/* 来源表关联关系 CSS 横排图 */
+.table-graph-view {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  padding: 12px 8px;
+  background: #fff;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: #fff;
-  overflow-x: auto;
+  margin-bottom: 10px;
+  gap: 0;
 }
 
-.graph-svg {
-  width: 100%;
-  min-width: 280px;
-  height: 140px;
+.table-node {
+  flex-shrink: 0;
+  background: #f0f5ff;
+  border: 1px solid #adc6ff;
+  border-radius: 6px;
+  padding: 6px 12px;
+  text-align: center;
+  min-width: 80px;
 }
 
-.graph-edge {
-  stroke: #91d5ff;
-  stroke-width: 2;
+.table-node-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d39c4;
+  white-space: nowrap;
 }
 
-.graph-edge-label {
+.table-node-db {
   font-size: 10px;
-  fill: #595959;
+  color: #8c8c8c;
+  margin-top: 2px;
+  white-space: nowrap;
 }
 
-.graph-node-dot {
-  fill: #1677ff;
+.join-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 4px;
+  min-width: 80px;
 }
 
-.graph-node-label {
-  font-size: 11px;
-  fill: #595959;
+.join-line {
+  width: 100%;
+  height: 2px;
+  background: #91d5ff;
+  position: relative;
 }
 
-.attr-delete-btn {
-  opacity: 0;
-  transition: opacity 0.2s;
+.join-label {
+  font-size: 9px;
+  color: #595959;
+  white-space: nowrap;
+  margin-top: 3px;
+  text-align: center;
 }
 
-.attr-row:hover .attr-delete-btn {
-  opacity: 1;
+.join-arrow {
+  font-size: 10px;
+  color: #1677ff;
+  margin-top: 2px;
 }
 
 .attr-table-wrapper {
@@ -670,6 +867,10 @@ function handleDelete() {
   background: #fafafa;
 }
 
+.add-row {
+  background: #fafff5;
+}
+
 .col-checkbox {
   width: 32px;
   text-align: center;
@@ -684,11 +885,11 @@ function handleDelete() {
 }
 
 .col-field {
-  width: 45%;
+  width: 40%;
 }
 
 .col-action {
-  width: 50px;
+  width: 70px;
   text-align: center;
 }
 
@@ -736,6 +937,15 @@ function handleDelete() {
   background: #e5dbff;
 }
 
+.add-row-chip {
+  opacity: 0.8;
+  border-style: dashed;
+}
+
+.add-row-chip:hover {
+  opacity: 1;
+}
+
 .attr-field {
   display: grid;
   grid-template-columns: auto auto 1fr auto;
@@ -775,6 +985,47 @@ function handleDelete() {
   margin-left: 4px;
   font-size: 10px;
   color: var(--text-secondary);
+}
+
+/* 属性操作按钮区 */
+.attr-action-btns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.attr-edit-btn,
+.attr-delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.attr-row:hover .attr-edit-btn,
+.attr-row:hover .attr-delete-btn {
+  opacity: 1;
+}
+
+.attr-save-btn {
+  color: var(--success-color);
+}
+
+/* 属性 inline 编辑输入 */
+.attr-edit-row {
+  display: flex;
+  gap: 4px;
+}
+
+.attr-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--primary-color);
+  border-radius: 3px;
+  outline: none;
+  background: #fff;
+  color: var(--text-main);
 }
 
 .entity-loading-mask {

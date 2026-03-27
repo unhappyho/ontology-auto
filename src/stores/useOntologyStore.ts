@@ -5,6 +5,7 @@ import type {
   OntologyL2,
   OntologyLeaf,
   Entity,
+  EntityAttr,
   MappingData,
   MappingField,
   EntityRelation,
@@ -472,6 +473,42 @@ export const useOntologyStore = defineStore('ontology', () => {
     return normalizeBinding({ dataSource, database, table })
   }
 
+  // 新增实体属性
+  function addEntityAttr(entityId: string, attr: { en: string; cn: string; termId?: string; termName?: string; mappedField?: MappingField }) {
+    const entities = ENTITY_DATA[_currentOntologyId.value]
+    if (!entities) return
+    const entity = entities.find(e => e.id === entityId)
+    if (!entity) return
+    const newAttr: EntityAttr = {
+      en: attr.en,
+      cn: attr.cn,
+      isNew: true,
+      termId: attr.termId,
+      termName: attr.termName
+    }
+    if (attr.mappedField) {
+      newAttr.mappedField = attr.mappedField.name
+      newAttr.mappedFieldSource = normalizeBinding({
+        dataSource: attr.mappedField.dataSource,
+        database: attr.mappedField.database,
+        table: attr.mappedField.table
+      })
+    }
+    entity.attrs.push(newAttr)
+  }
+
+  // 更新实体属性的英文名和中文名
+  function updateEntityAttr(entityId: string, oldEn: string, newEn: string, newCn: string) {
+    const entities = ENTITY_DATA[_currentOntologyId.value]
+    if (!entities) return
+    const entity = entities.find(e => e.id === entityId)
+    if (!entity) return
+    const attr = entity.attrs.find(a => a.en === oldEn)
+    if (!attr) return
+    attr.en = newEn
+    attr.cn = newCn
+  }
+
   // 删除实体的单个属性
   function deleteEntityAttr(entityId: string, attrEn: string) {
     const entities = ENTITY_DATA[_currentOntologyId.value]
@@ -600,6 +637,8 @@ export const useOntologyStore = defineStore('ontology', () => {
     updateEntitySources,
     updateEntityTableGraph,
     updateEntityAttrMappedField,
+    addEntityAttr,
+    updateEntityAttr,
     deleteEntityAttr,
     batchDeleteEntityAttrs,
     deleteEntity,

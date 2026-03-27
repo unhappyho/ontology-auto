@@ -142,7 +142,9 @@ function handleConfirm() {
 
   if (!selectedTerm) return
 
-  if (modalData.value?.isEntityLevel && modalData.value.entityId) {
+  if (modalData.value?.onSelect) {
+    modalData.value.onSelect(selectedTerm.id, selectedTerm.name)
+  } else if (modalData.value?.isEntityLevel && modalData.value.entityId) {
     ontologyStore.updateEntityTerm(modalData.value.entityId, selectedTerm.id, selectedTerm.name)
   } else if (modalData.value?.attrName) {
     // 属性级别（预留，暂不实现）

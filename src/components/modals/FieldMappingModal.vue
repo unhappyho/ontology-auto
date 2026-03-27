@@ -116,7 +116,9 @@ function handleConfirm() {
   const selectedField = findSelectedField()
   if (!entityId || !selectedField) return
 
-  if (modalData.value?.isEntityLevel) {
+  if (modalData.value?.onSelect) {
+    modalData.value.onSelect(selectedField)
+  } else if (modalData.value?.isEntityLevel) {
     ontologyStore.updateEntityKeyField(entityId, selectedField)
   } else {
     const attrName = modalData.value?.attrName
