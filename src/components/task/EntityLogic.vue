@@ -215,9 +215,9 @@ const associations = ref<OntologyAssociation[]>([
 
 // ---- Tab 配置 ----
 const tabs = computed(() => [
-  { key: 'function', label: '函数', icon: CodeOutlined, count: functions.value.length },
-  { key: 'action', label: '动作', icon: ThunderboltOutlined, count: actions.value.length },
-  { key: 'association', label: '本体和动作关联', icon: LinkOutlined, count: associations.value.length }
+  { key: 'function' as const, label: '函数', icon: CodeOutlined, count: functions.value.length },
+  { key: 'action' as const, label: '动作', icon: ThunderboltOutlined, count: actions.value.length },
+  { key: 'association' as const, label: '本体和动作关联', icon: LinkOutlined, count: associations.value.length }
 ])
 
 // ---- AI Loading 状态 ----
