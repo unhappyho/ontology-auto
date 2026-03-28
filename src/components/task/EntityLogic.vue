@@ -1,539 +1,325 @@
+<!-- src/components/task/EntityLogic.vue -->
 <template>
   <div class="entity-logic">
-    <!-- 顶部 Tab 切换 -->
+    <!-- Tab 栏 -->
     <div class="tab-bar">
       <div
+        v-for="tab in tabs"
+        :key="tab.key"
         class="tab-item"
-        :class="{ active: activeTab === 'function' }"
-        @click="activeTab = 'function'"
+        :class="{ active: activeTab === tab.key }"
+        @click="activeTab = tab.key"
       >
-        <CodeOutlined />
-        <span>函数</span>
-        <span class="tab-count">{{ functions.length }}</span>
-      </div>
-      <div
-        class="tab-item"
-        :class="{ active: activeTab === 'action' }"
-        @click="activeTab = 'action'"
-      >
-        <ThunderboltOutlined />
-        <span>动作</span>
-        <span class="tab-count">{{ actions.length }}</span>
+        <component :is="tab.icon" />
+        <span>{{ tab.label }}</span>
+        <span class="tab-count" :class="{ active: activeTab === tab.key }">{{ tab.count }}</span>
       </div>
     </div>
 
-    <!-- 内容区 -->
+    <!-- Tab 内容区 -->
     <div class="tab-content">
-      <!-- 函数 Tab -->
-      <div v-if="activeTab === 'function'" class="function-panel">
-        <!-- 左侧：工件列表 -->
-        <div class="artifact-panel">
-          <div class="artifact-header">
-            <div class="artifact-title">
-              <FolderOutlined />
-              <span>工件列表</span>
-            </div>
-            <a-tag color="blue">来自步骤1附件</a-tag>
-          </div>
-
-          <div class="artifact-list">
-            <div
-              v-for="fn in functions"
-              :key="fn.id"
-              class="artifact-item"
-              :class="{ selected: selectedFunctionId === fn.id }"
-              @click="selectedFunctionId = fn.id"
-            >
-              <div class="artifact-icon" :style="{ background: getTypeColor(fn.type).bg, color: getTypeColor(fn.type).text }">
-                <CodeOutlined v-if="fn.type === 'script'" />
-                <ApiOutlined v-else-if="fn.type === 'interface'" />
-                <FileTextOutlined v-else />
-              </div>
-              <div class="artifact-info">
-                <div class="artifact-name">{{ fn.name }}</div>
-                <div class="artifact-meta">
-                  <a-tag :color="getTypeColor(fn.type).tag" size="small">{{ getTypeLabel(fn.type) }}</a-tag>
-                  <span class="artifact-time">{{ fn.uploadTime }}</span>
-                </div>
-              </div>
-              <div class="artifact-status">
-                <CheckCircleOutlined v-if="fn.confirmed" class="confirmed-icon" />
-                <span v-else class="unconfirmed-dot"></span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 右侧：AI 推荐连线 -->
-        <div class="recommend-panel">
-          <div class="panel-header">
-            <div class="header-left">
-              <RobotOutlined class="ai-icon" />
-              <span>AI 推荐连线</span>
-            </div>
-            <a-button type="primary" :loading="isAnalyzing" @click="handleAIAnalyze">
-              <BulbOutlined v-if="!isAnalyzing" />
-              {{ isAnalyzing ? 'AI分析中...' : '重新分析' }}
-            </a-button>
-          </div>
-
-          <!-- Loading -->
-          <div v-if="isAnalyzing" class="ai-loading">
-            <a-spin size="large" />
-            <div class="loading-text">AI正在分析工件与实体的关联关系...</div>
-            <a-progress :percent="analyzeProgress" status="active" />
-          </div>
-
-          <!-- 推荐卡片 -->
-          <div v-else class="recommendations-wrap">
-            <div
-              v-for="(rec, index) in fnRecommendations"
-              :key="index"
-              class="fn-rec-card"
-              :class="{ confirmed: rec.confirmed, dismissed: rec.dismissed }"
-            >
-              <div class="fn-rec-body">
-                <!-- 函数端 -->
-                <div class="fn-node">
-                  <div class="fn-node-icon script">
-                    <CodeOutlined />
-                  </div>
-                  <div class="fn-node-info">
-                    <div class="fn-node-name">{{ rec.functionName }}</div>
-                    <a-tag :color="getTypeColor(rec.functionType).tag" size="small">{{ getTypeLabel(rec.functionType) }}</a-tag>
-                  </div>
-                </div>
-
-                <!-- 连线箭头 -->
-                <div class="fn-arrow">
-                  <div class="arrow-line"></div>
-                  <a-tag color="orange" class="confidence-tag">{{ rec.confidence }}</a-tag>
-                  <ArrowRightOutlined class="arrow-icon" />
-                </div>
-
-                <!-- 实体端 -->
-                <div class="fn-node">
-                  <div class="fn-node-icon entity">
-                    <AppstoreOutlined />
-                  </div>
-                  <div class="fn-node-info">
-                    <div class="fn-node-name">{{ rec.entityName }}</div>
-                    <a-tag color="blue" size="small">{{ rec.entityCn }}</a-tag>
-                  </div>
-                </div>
-              </div>
-
-              <div class="fn-rec-footer">
-                <span class="rec-desc">{{ rec.desc }}</span>
-                <div class="rec-btns" v-if="!rec.dismissed">
-                  <a-button
-                    v-if="!rec.confirmed"
-                    type="primary"
-                    size="small"
-                    @click="confirmRec(rec)"
-                  >
-                    <CheckOutlined />
-                    确认
-                  </a-button>
-                  <a-button
-                    v-else
-                    size="small"
-                    @click="rec.confirmed = false"
-                  >
-                    撤销
-                  </a-button>
-                  <a-button size="small" @click="rec.dismissed = true">驳回</a-button>
-                </div>
-                <a-tag v-else color="default">已驳回</a-tag>
-              </div>
-            </div>
-
-            <!-- 底部统计 -->
-            <div class="panel-footer">
-              <div class="footer-info">
-                已确认 <span class="confirmed-count">{{ confirmedFnCount }}</span> / {{ fnRecommendations.filter(r => !r.dismissed).length }} 条关联
-              </div>
-              <a-button type="primary" :disabled="confirmedFnCount === 0" @click="confirmAllFn">
-                确认全部
-              </a-button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 动作 Tab -->
-      <div v-if="activeTab === 'action'" class="action-panel">
-        <div class="action-panel-header">
-          <div class="header-left">
-            <ThunderboltOutlined class="action-icon" />
-            <span>动作定义</span>
-            <span class="action-subtitle">将多个函数编排为一个执行包</span>
-          </div>
-          <div class="header-right">
-            <a-button type="primary" @click="showNewActionModal = true">
-              <PlusOutlined />
-              新建动作
-            </a-button>
-            <a-button :loading="isAnalyzing" @click="handleAIRecommendAction">
-              <RobotOutlined v-if="!isAnalyzing" />
-              {{ isAnalyzing ? 'AI分析中...' : 'AI推荐组合' }}
-            </a-button>
-          </div>
-        </div>
-
-        <!-- 动作卡片网格 -->
-        <div class="action-grid">
-          <div v-for="action in actions" :key="action.id" class="action-card">
-            <div class="action-card-header">
-              <div class="action-name-wrap">
-                <ThunderboltOutlined class="action-card-icon" />
-                <div>
-                  <div class="action-name">{{ action.nameCn }}</div>
-                  <div class="action-name-en">{{ action.name }}</div>
-                </div>
-              </div>
-              <div class="action-card-btns">
-                <a-button type="link" size="small" @click="editAction(action)">
-                  <EditOutlined />
-                </a-button>
-                <a-button type="link" size="small" danger @click="deleteAction(action.id)">
-                  <DeleteOutlined />
-                </a-button>
-              </div>
-            </div>
-
-            <div class="action-functions">
-              <div class="functions-label">包含函数：</div>
-              <div class="functions-chips">
-                <a-tag
-                  v-for="fnId in action.functions"
-                  :key="fnId"
-                  :color="getFunctionTag(fnId).color"
-                  class="fn-chip"
-                >
-                  <CodeOutlined />
-                  {{ getFunctionTag(fnId).name }}
-                </a-tag>
-              </div>
-            </div>
-
-            <div class="action-card-footer">
-              <a-tag v-if="action.isNew" color="green">新建</a-tag>
-              <a-tag v-else color="blue">已有</a-tag>
-              <span class="action-fn-count">{{ action.functions.length }} 个函数</span>
-            </div>
-          </div>
-
-          <!-- 新建动作占位卡 -->
-          <div class="action-card action-card--add" @click="showNewActionModal = true">
-            <PlusOutlined class="add-icon" />
-            <span>新建动作</span>
-          </div>
-        </div>
-      </div>
+      <EntityLogicFunctions
+        v-show="activeTab === 'function'"
+        :functions="functions"
+        :is-loading="isFunctionLoading"
+        :loading-progress="functionProgress"
+        @confirm="onFunctionsConfirmed"
+        @reidentify="triggerFunctionReidentify"
+        @delete:function="deleteFunction"
+      />
+      <EntityLogicActions
+        v-show="activeTab === 'action'"
+        :actions="actions"
+        :functions="functions"
+        :is-loading="isActionLoading"
+        :loading-progress="actionProgress"
+        @confirm="onActionsConfirmed"
+        @back="activeTab = 'function'"
+        @reidentify="triggerActionReidentify"
+        @add:action="addAction"
+        @delete:action="deleteAction"
+      />
+      <EntityLogicAssociations
+        v-show="activeTab === 'association'"
+        :associations="associations"
+        :actions="actions"
+        :ontologies="ontologies"
+        :is-loading="isAssociationLoading"
+        :loading-progress="associationProgress"
+        @back="activeTab = 'action'"
+        @reidentify="triggerAssociationReidentify"
+        @complete="onComplete"
+        @add:association="addAssociation"
+        @delete:association="deleteAssociation"
+      />
     </div>
-
-    <!-- 新建/编辑动作弹窗 -->
-    <a-modal
-      v-model:open="showNewActionModal"
-      :title="editingAction ? '编辑动作' : '新建动作'"
-      @ok="handleSaveAction"
-      @cancel="closeActionModal"
-    >
-      <a-form layout="vertical">
-        <a-form-item label="动作名称（英文）">
-          <a-input v-model:value="actionForm.name" placeholder="如：processUserOrder" />
-        </a-form-item>
-        <a-form-item label="动作名称（中文）">
-          <a-input v-model:value="actionForm.nameCn" placeholder="如：处理用户订单" />
-        </a-form-item>
-        <a-form-item label="包含函数">
-          <a-select
-            v-model:value="actionForm.functions"
-            mode="multiple"
-            placeholder="选择要编排的函数"
-            :options="functionOptions"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import {
-  CodeOutlined,
-  ThunderboltOutlined,
-  FolderOutlined,
-  RobotOutlined,
-  BulbOutlined,
-  CheckCircleOutlined,
-  ArrowRightOutlined,
-  AppstoreOutlined,
-  ApiOutlined,
-  FileTextOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CheckOutlined
-} from '@ant-design/icons-vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { CodeOutlined, ThunderboltOutlined, LinkOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
+import EntityLogicFunctions from './EntityLogicFunctions.vue'
+import EntityLogicActions from './EntityLogicActions.vue'
+import EntityLogicAssociations from './EntityLogicAssociations.vue'
 import { useCopilotStore } from '@/stores'
+import type { FunctionDef, ActionDef, OntologyItem, OntologyAssociation } from '@/types/entityLogic'
 
 const copilotStore = useCopilotStore()
 
-const activeTab = ref<'function' | 'action'>('function')
-const isAnalyzing = ref(false)
-const analyzeProgress = ref(0)
-const selectedFunctionId = ref<string | null>(null)
-const showNewActionModal = ref(false)
-const editingAction = ref<ActionItem | null>(null)
+// ---- Tab 配置 ----
+const activeTab = ref<'function' | 'action' | 'association'>('function')
 
-// ---- 数据类型 ----
-interface FunctionItem {
-  id: string
-  name: string
-  type: 'script' | 'interface' | 'document'
-  linkedEntity?: string
-  uploadTime: string
-  confirmed: boolean
-}
-
-interface ActionItem {
-  id: string
-  name: string
-  nameCn: string
-  functions: string[]
-  isNew: boolean
-}
-
-interface FnRecommendation {
-  functionName: string
-  functionType: 'script' | 'interface' | 'document'
-  entityName: string
-  entityCn: string
-  confidence: string
-  desc: string
-  confirmed: boolean
-  dismissed: boolean
-}
-
-// ---- Mock 数据（模拟步骤1上传的工件） ----
-const functions = ref<FunctionItem[]>([
-  { id: 'f1', name: 'extract_user_info.py', type: 'script', uploadTime: '2024-03-15', confirmed: true },
-  { id: 'f2', name: 'user_order_api.yaml', type: 'interface', uploadTime: '2024-03-15', confirmed: true },
-  { id: 'f3', name: 'risk_calc.py', type: 'script', uploadTime: '2024-03-16', confirmed: false },
-  { id: 'f4', name: 'crm_sync_api.json', type: 'interface', uploadTime: '2024-03-16', confirmed: false },
-  { id: 'f5', name: '业务规则说明.pdf', type: 'document', uploadTime: '2024-03-17', confirmed: false },
-  { id: 'f6', name: 'billing_calc.sql', type: 'script', uploadTime: '2024-03-17', confirmed: false },
-])
-
-const actions = ref<ActionItem[]>([
+// ---- 数据（Mock，来自参考源码 mockData.ts） ----
+const functions = ref<FunctionDef[]>([
   {
-    id: 'a1',
-    name: 'processUserRisk',
-    nameCn: '用户风险处理',
-    functions: ['f1', 'f3'],
-    isNew: true
+    id: 'func-001', code: 'CUST_001', name: '根据客户ID查询客户',
+    description: '根据客户ID查询客户详细信息', documentName: '客户管理接口文档',
+    fileName: 'customer_api_v1.0.json', serverUrl: 'https://api.example.com',
+    path: '/api/v1/customers/{customer_id}', method: 'POST', bodyType: 'raw',
+    headers: [
+      { id: 'h1', key: 'Content-Type', value: 'application/json', description: '内容类型' },
+      { id: 'h2', key: 'Authorization', value: 'Bearer {{token}}', description: '认证令牌' }
+    ],
+    inputParams: [
+      { id: 'ip1', name: 'customer_id', description: '客户ID', type: 'String', passMethod: 'Body', required: true },
+      { id: 'ip2', name: 'include_detail', description: '是否包含详情', type: 'Boolean', passMethod: 'Body', required: false }
+    ],
+    outputParams: [
+      { id: 'op1', name: 'customer_name', description: '客户名称', type: 'String', required: true },
+      { id: 'op2', name: 'customer_phone', description: '客户手机号', type: 'String', required: false },
+      { id: 'op3', name: 'customer_email', description: '客户邮箱', type: 'String', required: false }
+    ]
   },
   {
-    id: 'a2',
-    name: 'syncOrderData',
-    nameCn: '订单数据同步',
-    functions: ['f2', 'f4'],
-    isNew: true
+    id: 'func-002', code: 'ORD_001', name: '查询订单列表',
+    description: '根据条件查询订单列表信息', documentName: '订单管理接口文档',
+    fileName: 'order_api_v2.3.yaml', serverUrl: 'https://api.example.com',
+    path: '/api/v1/orders', method: 'GET', bodyType: 'raw',
+    headers: [
+      { id: 'h3', key: 'Authorization', value: 'Bearer {{token}}', description: '认证令牌' }
+    ],
+    inputParams: [
+      { id: 'ip3', name: 'page', description: '页码', type: 'Integer', passMethod: 'Query', required: false, defaultValue: '1' },
+      { id: 'ip4', name: 'page_size', description: '每页数量', type: 'Integer', passMethod: 'Query', required: false, defaultValue: '20' },
+      { id: 'ip5', name: 'status', description: '订单状态', type: 'String', passMethod: 'Query', required: false }
+    ],
+    outputParams: [
+      { id: 'op4', name: 'order_id', description: '订单编号', type: 'String', required: true },
+      { id: 'op5', name: 'order_amount', description: '订单金额', type: 'Number', required: true },
+      { id: 'op6', name: 'order_status', description: '订单状态', type: 'String', required: true },
+      { id: 'op7', name: 'created_at', description: '创建时间', type: 'String', required: true }
+    ]
   },
   {
-    id: 'a3',
-    name: 'calcBilling',
-    nameCn: '计费结算',
-    functions: ['f6'],
-    isNew: false
+    id: 'func-003', code: 'PROD_001', name: '查询产品详情',
+    description: '根据产品ID查询产品详细信息', documentName: '产品管理接口文档',
+    fileName: 'product_api_v1.5.json', serverUrl: 'https://api.example.com',
+    path: '/api/v1/products/{product_id}', method: 'GET', bodyType: 'raw',
+    headers: [],
+    inputParams: [
+      { id: 'ip6', name: 'product_id', description: '产品ID', type: 'String', passMethod: 'Path', required: true }
+    ],
+    outputParams: [
+      { id: 'op8', name: 'product_name', description: '产品名称', type: 'String', required: true },
+      { id: 'op9', name: 'product_price', description: '产品价格', type: 'Number', required: true },
+      { id: 'op10', name: 'product_desc', description: '产品描述', type: 'String', required: false }
+    ]
+  },
+  {
+    id: 'func-004', code: 'CUST_002', name: '更新客户信息',
+    description: '根据客户ID更新客户信息', documentName: '客户管理接口文档',
+    fileName: 'customer_api_v1.0.json', serverUrl: 'https://api.example.com',
+    path: '/api/v1/customers/{customer_id}', method: 'PUT', bodyType: 'raw',
+    headers: [
+      { id: 'h4', key: 'Content-Type', value: 'application/json', description: '内容类型' },
+      { id: 'h5', key: 'Authorization', value: 'Bearer {{token}}', description: '认证令牌' }
+    ],
+    inputParams: [
+      { id: 'ip7', name: 'customer_id', description: '客户ID', type: 'String', passMethod: 'Path', required: true },
+      { id: 'ip8', name: 'customer_name', description: '客户名称', type: 'String', passMethod: 'Body', required: false },
+      { id: 'ip9', name: 'customer_phone', description: '客户手机号', type: 'String', passMethod: 'Body', required: false }
+    ],
+    outputParams: [
+      { id: 'op11', name: 'success', description: '是否成功', type: 'Boolean', required: true },
+      { id: 'op12', name: 'message', description: '返回消息', type: 'String', required: false }
+    ]
+  },
+  {
+    id: 'func-005', code: 'ORD_002', name: '创建订单',
+    description: '创建新的订单', documentName: '订单管理接口文档',
+    fileName: 'order_api_v2.3.yaml', serverUrl: 'https://api.example.com',
+    path: '/api/v1/orders', method: 'POST', bodyType: 'raw',
+    headers: [
+      { id: 'h6', key: 'Content-Type', value: 'application/json', description: '内容类型' },
+      { id: 'h7', key: 'Authorization', value: 'Bearer {{token}}', description: '认证令牌' }
+    ],
+    inputParams: [
+      { id: 'ip10', name: 'customer_id', description: '客户ID', type: 'String', passMethod: 'Body', required: true },
+      { id: 'ip11', name: 'product_id', description: '产品ID', type: 'String', passMethod: 'Body', required: true },
+      { id: 'ip12', name: 'quantity', description: '数量', type: 'Integer', passMethod: 'Body', required: true }
+    ],
+    outputParams: [
+      { id: 'op13', name: 'order_id', description: '订单编号', type: 'String', required: true },
+      { id: 'op14', name: 'order_amount', description: '订单金额', type: 'Number', required: true }
+    ]
   }
 ])
 
-const fnRecommendations = ref<FnRecommendation[]>([
+const actions = ref<ActionDef[]>([
+  { id: 'act-001', code: 'ACT_001', name: '查询客户信息', description: '根据客户ID查询客户详细信息', type: '原子动作', targetFunctionId: 'func-001', category: '客户管理' },
+  { id: 'act-002', code: 'ACT_002', name: '查询订单列表', description: '根据条件查询订单列表信息', type: '原子动作', targetFunctionId: 'func-002', category: '订单管理' },
+  { id: 'act-003', code: 'ACT_003', name: '查询产品详情', description: '根据产品ID查询产品详细信息', type: '原子动作', targetFunctionId: 'func-003', category: '产品管理' },
+  { id: 'act-004', code: 'ACT_004', name: '更新客户信息', description: '根据客户ID更新客户信息', type: '原子动作', targetFunctionId: 'func-004', category: '客户管理' },
+  { id: 'act-005', code: 'ACT_005', name: '创建订单', description: '创建新的订单', type: '原子动作', targetFunctionId: 'func-005', category: '订单管理' }
+])
+
+const ontologies = ref<OntologyItem[]>([
   {
-    functionName: 'extract_user_info.py',
-    functionType: 'script',
-    entityName: 'User',
-    entityCn: '用户',
-    confidence: '高',
-    desc: '脚本功能与用户实体的属性提取高度匹配',
-    confirmed: true,
-    dismissed: false
+    id: 'ont-001', name: '客户', description: '客户实体', category: 'CRM', subCategory: '基础数据',
+    attributes: [
+      { id: 'attr-001', name: '客户ID', description: '客户唯一标识', type: 'String' },
+      { id: 'attr-002', name: '客户名称', description: '客户姓名', type: 'String' },
+      { id: 'attr-003', name: '手机号', description: '客户手机号码', type: 'String' },
+      { id: 'attr-004', name: '邮箱', description: '客户电子邮箱', type: 'String' }
+    ]
   },
   {
-    functionName: 'user_order_api.yaml',
-    functionType: 'interface',
-    entityName: 'Order',
-    entityCn: '订单',
-    confidence: '高',
-    desc: '接口文档描述了订单数据的创建与查询逻辑',
-    confirmed: true,
-    dismissed: false
+    id: 'ont-002', name: '订单', description: '订单实体', category: 'CRM', subCategory: '交易数据',
+    attributes: [
+      { id: 'attr-005', name: '订单编号', description: '订单唯一标识', type: 'String' },
+      { id: 'attr-006', name: '订单金额', description: '订单总金额', type: 'Number' },
+      { id: 'attr-007', name: '订单状态', description: '当前订单状态', type: 'String' },
+      { id: 'attr-008', name: '创建时间', description: '订单创建时间', type: 'String' }
+    ]
   },
   {
-    functionName: 'risk_calc.py',
-    functionType: 'script',
-    entityName: 'RiskLevel',
-    entityCn: '风险等级',
-    confidence: '中',
-    desc: '脚本中包含风险等级计算相关字段引用',
-    confirmed: false,
-    dismissed: false
-  },
-  {
-    functionName: 'billing_calc.sql',
-    functionType: 'script',
-    entityName: 'BillingRecord',
-    entityCn: '计费记录',
-    confidence: '中',
-    desc: 'SQL脚本对计费明细表进行聚合计算',
-    confirmed: false,
-    dismissed: false
-  },
-  {
-    functionName: 'crm_sync_api.json',
-    functionType: 'interface',
-    entityName: 'UserContact',
-    entityCn: '用户联系方式',
-    confidence: '低',
-    desc: '接口涉及用户联系信息字段，置信度较低',
-    confirmed: false,
-    dismissed: false
+    id: 'ont-003', name: '产品', description: '产品实体', category: '产品管理', subCategory: '基础数据',
+    attributes: [
+      { id: 'attr-009', name: '产品ID', description: '产品唯一标识', type: 'String' },
+      { id: 'attr-010', name: '产品名称', description: '产品名称', type: 'String' },
+      { id: 'attr-011', name: '产品价格', description: '产品价格', type: 'Number' },
+      { id: 'attr-012', name: '产品描述', description: '产品详细描述', type: 'String' }
+    ]
   }
 ])
 
-// ---- 新建/编辑动作表单 ----
-const actionForm = ref({
-  name: '',
-  nameCn: '',
-  functions: [] as string[]
-})
+const associations = ref<OntologyAssociation[]>([
+  { id: 'assoc-001', actionId: 'act-001', ontologyId: 'ont-001', confidence: 0.95 },
+  { id: 'assoc-002', actionId: 'act-002', ontologyId: 'ont-002', confidence: 0.88 },
+  { id: 'assoc-003', actionId: 'act-003', ontologyId: 'ont-003', confidence: 0.92 },
+  { id: 'assoc-004', actionId: 'act-002', ontologyId: 'ont-001', confidence: 0.72 },
+  { id: 'assoc-005', actionId: 'act-001', ontologyId: 'ont-001', confidence: 1.00 }
+])
 
-const functionOptions = computed(() =>
-  functions.value.map(f => ({
-    label: f.name,
-    value: f.id
-  }))
-)
+// ---- Tab 配置 ----
+const tabs = computed(() => [
+  { key: 'function', label: '函数', icon: CodeOutlined, count: functions.value.length },
+  { key: 'action', label: '动作', icon: ThunderboltOutlined, count: actions.value.length },
+  { key: 'association', label: '本体和动作关联', icon: LinkOutlined, count: associations.value.length }
+])
 
-// ---- 统计 ----
-const confirmedFnCount = computed(() =>
-  fnRecommendations.value.filter(r => r.confirmed && !r.dismissed).length
-)
+// ---- AI Loading 状态 ----
+const isFunctionLoading = ref(false)
+const isActionLoading = ref(false)
+const isAssociationLoading = ref(false)
+const functionProgress = ref(0)
+const actionProgress = ref(0)
+const associationProgress = ref(0)
 
-// ---- 工具函数 ----
-function getTypeColor(type: string) {
-  const map: Record<string, { bg: string; text: string; tag: string }> = {
-    script: { bg: '#f9f0ff', text: '#722ed1', tag: 'purple' },
-    interface: { bg: '#e6fffb', text: '#13c2c2', tag: 'cyan' },
-    document: { bg: '#e6f7ff', text: '#1677ff', tag: 'blue' }
-  }
-  return map[type] || map.script
-}
-
-function getTypeLabel(type: string) {
-  const map: Record<string, string> = {
-    script: '脚本',
-    interface: '接口',
-    document: '文档'
-  }
-  return map[type] || type
-}
-
-function getFunctionTag(fnId: string) {
-  const fn = functions.value.find(f => f.id === fnId)
-  return fn
-    ? { name: fn.name, color: getTypeColor(fn.type).tag }
-    : { name: fnId, color: 'default' }
-}
-
-// ---- 操作方法 ----
-function handleAIAnalyze() {
-  copilotStore.triggerAIAnalysis(4)
-  isAnalyzing.value = true
-  analyzeProgress.value = 0
-  const interval = setInterval(() => {
-    analyzeProgress.value += 10
-    if (analyzeProgress.value >= 100) {
-      clearInterval(interval)
-      isAnalyzing.value = false
+function runLoadingAnimation(
+  progressRef: { value: number },
+  loadingRef: { value: boolean },
+  duration: number,
+  onDone?: () => void
+) {
+  progressRef.value = 0
+  loadingRef.value = true
+  const steps = 20
+  const interval = duration / steps
+  let step = 0
+  const timer = setInterval(() => {
+    step++
+    progressRef.value = Math.min(Math.round((step / steps) * 100), 100)
+    if (step >= steps) {
+      clearInterval(timer)
+      loadingRef.value = false
+      onDone?.()
     }
-  }, 200)
+  }, interval)
 }
 
-function handleAIRecommendAction() {
-  isAnalyzing.value = true
-  setTimeout(() => {
-    isAnalyzing.value = false
-  }, 2000)
+// ---- AI 识别触发 ----
+function triggerFunctionReidentify() {
+  activeTab.value = 'function'
+  runLoadingAnimation(functionProgress, isFunctionLoading, 1500)
+  copilotStore.triggerAIAnalysis(4)
 }
 
-function confirmRec(rec: FnRecommendation) {
-  rec.confirmed = true
-  // 同步更新工件列表中的确认状态
-  const fn = functions.value.find(f => f.name === rec.functionName)
-  if (fn) fn.confirmed = true
+function triggerActionReidentify() {
+  activeTab.value = 'action'
+  runLoadingAnimation(actionProgress, isActionLoading, 1200)
 }
 
-function confirmAllFn() {
-  fnRecommendations.value.forEach(r => {
-    if (!r.dismissed) r.confirmed = true
+function triggerAssociationReidentify() {
+  activeTab.value = 'association'
+  runLoadingAnimation(associationProgress, isAssociationLoading, 2000)
+}
+
+// ---- 步骤间流转 ----
+function onFunctionsConfirmed() {
+  activeTab.value = 'action'
+  runLoadingAnimation(actionProgress, isActionLoading, 1200)
+}
+
+function onActionsConfirmed() {
+  activeTab.value = 'association'
+  runLoadingAnimation(associationProgress, isAssociationLoading, 2000)
+}
+
+function onComplete() {
+  message.success('本体和动作关联已确认，可继续完成步骤')
+}
+
+// ---- CRUD ----
+function deleteFunction(id: string) {
+  functions.value = functions.value.filter(f => f.id !== id)
+}
+
+function addAction() {
+  const newId = `act-${Date.now()}`
+  actions.value.push({
+    id: newId, code: `ACT_00${actions.value.length + 1}`,
+    name: '新建动作', description: '',
+    type: '原子动作', targetFunctionId: functions.value[0]?.id || '',
+    category: '其他'
   })
-  functions.value.forEach(f => {
-    f.confirmed = true
-  })
-}
-
-function editAction(action: ActionItem) {
-  editingAction.value = action
-  actionForm.value = {
-    name: action.name,
-    nameCn: action.nameCn,
-    functions: [...action.functions]
-  }
-  showNewActionModal.value = true
 }
 
 function deleteAction(id: string) {
-  const idx = actions.value.findIndex(a => a.id === id)
-  if (idx !== -1) actions.value.splice(idx, 1)
+  actions.value = actions.value.filter(a => a.id !== id)
 }
 
-function handleSaveAction() {
-  if (editingAction.value) {
-    editingAction.value.name = actionForm.value.name
-    editingAction.value.nameCn = actionForm.value.nameCn
-    editingAction.value.functions = [...actionForm.value.functions]
-  } else {
-    actions.value.push({
-      id: `a${Date.now()}`,
-      name: actionForm.value.name,
-      nameCn: actionForm.value.nameCn,
-      functions: [...actionForm.value.functions],
-      isNew: true
-    })
-  }
-  closeActionModal()
+function addAssociation(assoc: Omit<OntologyAssociation, 'id'>) {
+  associations.value.push({ ...assoc, id: `assoc-${Date.now()}` })
 }
 
-function closeActionModal() {
-  showNewActionModal.value = false
-  editingAction.value = null
-  actionForm.value = { name: '', nameCn: '', functions: [] }
+function deleteAssociation(id: string) {
+  associations.value = associations.value.filter(a => a.id !== id)
 }
 
-// 监听副驾重新识别
-watch(
-  () => copilotStore.reidentifyAction,
-  (action) => {
-    if (action === 'reextract-functions') {
-      handleAIAnalyze()
-    }
-  }
-)
+// ---- 副驾 reidentify 联动 ----
+watch(() => copilotStore.reidentifyAction, (action) => {
+  if (action === 'reidentify-functions') triggerFunctionReidentify()
+  if (action === 'reidentify-actions') triggerActionReidentify()
+  if (action === 'reidentify-associations') triggerAssociationReidentify()
+})
+
+// ---- 进入 Step 4 自动触发函数识别 ----
+onMounted(() => {
+  runLoadingAnimation(functionProgress, isFunctionLoading, 1500)
+})
 </script>
 
 <style scoped>
@@ -555,7 +341,6 @@ watch(
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
-
 .tab-item {
   display: flex;
   align-items: center;
@@ -568,19 +353,17 @@ watch(
   color: var(--text-secondary);
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
+  user-select: none;
 }
-
 .tab-item:hover {
   color: var(--primary-color);
   background: var(--primary-light);
 }
-
 .tab-item.active {
   color: var(--primary-color);
   border-bottom-color: var(--primary-color);
   background: var(--primary-light);
 }
-
 .tab-count {
   display: inline-flex;
   align-items: center;
@@ -594,469 +377,19 @@ watch(
   font-size: 11px;
   font-weight: 600;
 }
-
 .tab-item.active .tab-count {
   background: var(--primary-color);
   color: #fff;
 }
 
-/* 内容区 */
+/* Tab 内容区 */
 .tab-content {
   flex: 1;
   overflow: hidden;
-}
-
-/* ---- 函数面板 ---- */
-.function-panel {
-  display: flex;
-  height: 100%;
-}
-
-/* 工件列表 */
-.artifact-panel {
-  width: 300px;
-  background: var(--bg-white);
-  border-right: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.artifact-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
-}
-
-.artifact-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.artifact-title :deep(.anticon) {
-  color: var(--primary-color);
-}
-
-.artifact-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-}
-
-.artifact-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid transparent;
-  margin-bottom: 4px;
-}
-
-.artifact-item:hover {
-  background: var(--primary-light);
-  border-color: var(--primary-color);
-}
-
-.artifact-item.selected {
-  background: var(--primary-light);
-  border-color: var(--primary-color);
-}
-
-.artifact-icon {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.artifact-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.artifact-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-main);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.artifact-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 3px;
-}
-
-.artifact-time {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.artifact-status {
-  flex-shrink: 0;
-}
-
-.confirmed-icon {
-  color: #52c41a;
-  font-size: 16px;
-}
-
-.unconfirmed-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #d9d9d9;
-}
-
-/* AI 推荐面板 */
-.recommend-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  background: var(--bg-white);
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.ai-icon {
-  font-size: 20px;
-  color: #722ed1;
-}
-
-.ai-loading {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 40px;
-}
-
-.loading-text {
-  color: var(--text-secondary);
-}
-
-.recommendations-wrap {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* 函数推荐卡片 */
-.fn-rec-card {
-  background: var(--bg-white);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 14px 16px;
-  transition: border-color 0.2s;
-}
-
-.fn-rec-card.confirmed {
-  border-color: #52c41a;
-  background: #f6ffed;
-}
-
-.fn-rec-card.dismissed {
-  opacity: 0.5;
-}
-
-.fn-rec-body {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.fn-node {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-}
-
-.fn-node-icon {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.fn-node-icon.script {
-  background: #f9f0ff;
-  color: #722ed1;
-}
-
-.fn-node-icon.entity {
-  background: #e6f7ff;
-  color: #1677ff;
-}
-
-.fn-node-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-main);
-}
-
-.fn-arrow {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.arrow-line {
-  width: 40px;
-  height: 2px;
-  background: linear-gradient(90deg, #d9d9d9 0%, var(--primary-color) 100%);
-}
-
-.confidence-tag {
-  font-size: 11px;
-}
-
-.arrow-icon {
-  color: var(--primary-color);
-  font-size: 14px;
-}
-
-.fn-rec-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 10px;
-  border-top: 1px dashed var(--border-color);
-}
-
-.rec-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-  flex: 1;
-}
-
-.rec-btns {
-  display: flex;
-  gap: 8px;
-}
-
-/* 底部 */
-.panel-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  background: var(--bg-white);
-  border-top: 1px solid var(--border-color);
-  margin-top: auto;
-  flex-shrink: 0;
-}
-
-.footer-info {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.confirmed-count {
-  font-weight: 600;
-  color: var(--primary-color);
-}
-
-/* ---- 动作面板 ---- */
-.action-panel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.action-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  background: var(--bg-white);
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
-}
-
-.action-icon {
-  font-size: 18px;
-  color: #fa8c16;
-}
-
-.action-subtitle {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-left: 8px;
-}
-
-.header-right {
-  display: flex;
-  gap: 10px;
-}
-
-.action-grid {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  align-content: start;
-}
-
-.action-card {
-  background: var(--bg-white);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: box-shadow 0.2s;
-}
-
-.action-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.action-card--add {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 2px dashed var(--border-color);
-  cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 14px;
-  min-height: 120px;
-  transition: all 0.2s;
-}
-
-.action-card--add:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-  background: var(--primary-light);
-}
-
-.add-icon {
-  font-size: 24px;
-}
-
-.action-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.action-name-wrap {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.action-card-icon {
-  font-size: 20px;
-  color: #fa8c16;
-  margin-top: 2px;
-}
-
-.action-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.action-name-en {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-.action-card-btns {
-  display: flex;
-  gap: 4px;
-}
-
-.action-functions {
-  background: #fafafa;
-  border-radius: 6px;
-  padding: 10px;
-}
-
-.functions-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-
-.functions-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.fn-chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-}
-
-.action-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border-color);
-}
-
-.action-fn-count {
-  font-size: 12px;
-  color: var(--text-secondary);
+  position: relative;
+}
+.tab-content > * {
+  position: absolute;
+  inset: 0;
 }
 </style>
