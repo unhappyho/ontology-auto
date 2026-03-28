@@ -120,8 +120,8 @@
             <div class="section-header-row">
               <span class="section-title">输入参数 {{ targetFunction.inputParams.length }} 项</span>
               <span class="from-fn-label"><LinkOutlined /> 来自函数</span>
-              <a-button size="small" @click="handleAutoMatch">
-                <ThunderboltOutlined /> 自动关联匹配
+              <a-button size="small" @click="matchAllParams">
+                <ThunderboltOutlined /> 全部匹配
               </a-button>
             </div>
             <a-table
@@ -130,6 +130,7 @@
               :pagination="false"
               size="small"
               row-key="id"
+              :row-class-name="(record: Param) => isMatching(record.id) ? 'row-matching' : ''"
             >
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'associatedTermId'">
@@ -142,6 +143,18 @@
                     allow-clear
                   />
                 </template>
+                <template v-else-if="column.key === 'matchAction'">
+                  <a-tooltip title="重新匹配术语">
+                    <a-button
+                      type="text"
+                      size="small"
+                      :loading="isMatching(record.id)"
+                      @click="matchSingleParam(record)"
+                    >
+                      <ThunderboltOutlined v-if="!isMatching(record.id)" style="color: #722ed1" />
+                    </a-button>
+                  </a-tooltip>
+                </template>
               </template>
             </a-table>
           </div>
@@ -151,6 +164,9 @@
             <div class="section-header-row">
               <span class="section-title">输出参数 {{ targetFunction.outputParams.length }} 项</span>
               <span class="from-fn-label"><LinkOutlined /> 来自函数</span>
+              <a-button size="small" @click="matchAllParams">
+                <ThunderboltOutlined /> 全部匹配
+              </a-button>
             </div>
             <a-table
               :data-source="targetFunction.outputParams"
@@ -158,6 +174,7 @@
               :pagination="false"
               size="small"
               row-key="id"
+              :row-class-name="(record: Param) => isMatching(record.id) ? 'row-matching' : ''"
             >
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'associatedTermId'">
@@ -169,6 +186,18 @@
                     placeholder="选择关联术语"
                     allow-clear
                   />
+                </template>
+                <template v-else-if="column.key === 'matchAction'">
+                  <a-tooltip title="重新匹配术语">
+                    <a-button
+                      type="text"
+                      size="small"
+                      :loading="isMatching(record.id)"
+                      @click="matchSingleParam(record)"
+                    >
+                      <ThunderboltOutlined v-if="!isMatching(record.id)" style="color: #722ed1" />
+                    </a-button>
+                  </a-tooltip>
                 </template>
               </template>
             </a-table>
@@ -190,8 +219,7 @@ import {
   FileTextOutlined, DeleteOutlined, ThunderboltOutlined,
   LinkOutlined, RightOutlined
 } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
-import type { ActionDef, FunctionDef } from '@/types/entityLogic'
+import type { ActionDef, FunctionDef, Param } from '@/types/entityLogic'
 
 const props = defineProps<{
   actions: ActionDef[]
@@ -227,8 +255,52 @@ function handleReidentify() {
   setTimeout(() => { reidentifyLoading.value = false }, 1800)
 }
 
-function handleAutoMatch() {
-  message.success('已自动关联匹配术语')
+// ---- 术语自动匹配 ----
+const TERM_MATCH_MAP: Record<string, string> = {
+  'customer_id':    'term-cust-id',
+  'customer_name':  'term-cust-name',
+  'customer_phone': 'term-phone',
+  'customer_email': 'term-email',
+  'order_id':       'term-order-id',
+  'order_amount':   'term-amount',
+  'order_status':   'term-order-status',
+  'product_id':     'term-prod-id',
+  'product_name':   'term-prod-name',
+  'product_price':  'term-amount',
+  'status':         'term-order-status',
+  'amount':         'term-amount',
+}
+
+function matchTerm(paramName: string): string | undefined {
+  if (TERM_MATCH_MAP[paramName]) return TERM_MATCH_MAP[paramName]
+  for (const [key, termId] of Object.entries(TERM_MATCH_MAP)) {
+    if (paramName.includes(key) || key.includes(paramName)) return termId
+  }
+  return undefined
+}
+
+const matchingParamIds = ref<Set<string>>(new Set())
+
+function isMatching(paramId: string): boolean {
+  return matchingParamIds.value.has(paramId)
+}
+
+function matchSingleParam(param: Param) {
+  if (matchingParamIds.value.has(param.id)) return
+  matchingParamIds.value.add(param.id)
+  // 触发响应性更新
+  matchingParamIds.value = new Set(matchingParamIds.value)
+  setTimeout(() => {
+    param.associatedTermId = matchTerm(param.name)
+    matchingParamIds.value.delete(param.id)
+    matchingParamIds.value = new Set(matchingParamIds.value)
+  }, 600)
+}
+
+function matchAllParams() {
+  const fn = targetFunction.value
+  if (!fn) return
+  ;[...fn.inputParams, ...fn.outputParams].forEach(matchSingleParam)
 }
 
 // ---- 分组 ----
@@ -267,6 +339,16 @@ const targetFunction = computed(() => {
   return props.functions.find(f => f.id === selectedAction.value!.targetFunctionId) || null
 })
 
+// 切换 targetFunction 时自动预填充未填的参数术语
+watch(targetFunction, (fn) => {
+  if (!fn) return
+  ;[...fn.inputParams, ...fn.outputParams].forEach(p => {
+    if (!p.associatedTermId) {
+      p.associatedTermId = matchTerm(p.name)
+    }
+  })
+}, { immediate: true })
+
 // ---- 选项 ----
 const actionTypeOptions = [
   { label: '原子动作', value: '原子动作' },
@@ -300,7 +382,8 @@ const inputParamColumns = [
   { title: '类型', dataIndex: 'type', width: 100 },
   { title: '必填', dataIndex: 'required', width: 60, customRender: ({ text }: { text: boolean }) => text ? '✓' : '' },
   { title: '传入方法', dataIndex: 'passMethod', width: 90 },
-  { title: '关联术语', key: 'associatedTermId', width: 160 }
+  { title: '关联术语', key: 'associatedTermId', width: 160 },
+  { title: '', key: 'matchAction', width: 44 }
 ]
 
 const outputParamColumns = [
@@ -308,7 +391,8 @@ const outputParamColumns = [
   { title: '参数描述', dataIndex: 'description' },
   { title: '类型', dataIndex: 'type', width: 100 },
   { title: '必填', dataIndex: 'required', width: 60, customRender: ({ text }: { text: boolean }) => text ? '✓' : '' },
-  { title: '关联术语', key: 'associatedTermId', width: 160 }
+  { title: '关联术语', key: 'associatedTermId', width: 160 },
+  { title: '', key: 'matchAction', width: 44 }
 ]
 </script>
 
@@ -416,4 +500,10 @@ const outputParamColumns = [
   justify-content: center; gap: 12px; color: var(--text-secondary); font-size: 14px;
 }
 .empty-icon { font-size: 40px; color: #d9d9d9; }
+
+/* 行级术语匹配动效 */
+:deep(.row-matching td) {
+  background: rgba(114, 46, 209, 0.06) !important;
+  transition: background 0.3s;
+}
 </style>
