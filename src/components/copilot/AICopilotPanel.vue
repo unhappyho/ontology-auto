@@ -198,8 +198,8 @@ const STEP_NAMES: Record<number, string> = {
   1: '数据采集',
   2: '实体提取',
   3: '关联构建',
-  4: '规则识别',
-  5: '动作识别'
+  4: '实体逻辑',
+  5: '业务规则'
 }
 
 const copilotStore = useCopilotStore()
