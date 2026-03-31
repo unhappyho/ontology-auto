@@ -287,7 +287,7 @@ const isLoading = computed(() => ontologyStore.reextractingEntityId === props.en
 const entitySources = computed(() => ontologyStore.getEntitySources(props.entity.id))
 const tableGraph = computed(() => ontologyStore.getEntityTableGraph(props.entity.id))
 
-const hasTableJoins = computed(() => tableGraph.value.edges.length > 0)
+const hasTableJoins = computed(() => tableGraph.value.nodes.length > 1)
 const showGraphModal = ref(false)
 
 const normalAttrs = computed(() =>

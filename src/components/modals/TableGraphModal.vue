@@ -23,6 +23,14 @@
             stroke-width="1.5"
             marker-end="url(#arrow)"
           />
+          <rect
+            :x="edge.labelX - 32"
+            :y="edge.labelY - 12"
+            width="64"
+            height="14"
+            fill="white"
+            rx="2"
+          />
           <text
             :x="edge.labelX"
             :y="edge.labelY"
@@ -125,11 +133,12 @@ const computedEdges = computed(() => {
 
     const label = [edge.relationType, edge.joinKey].filter(Boolean).join(' · ') || ''
 
+    // 标签放在靠近目标节点的水平段中点，纵向偏移 -10 避开连线
     result.push({
       id: edge.id,
       points: `${x1},${y1} ${mx},${y1} ${mx},${y2} ${x2},${y2}`,
-      labelX: mx,
-      labelY: Math.min(y1, y2) - 6,
+      labelX: (mx + x2) / 2,
+      labelY: y2 - 10,
       label
     })
   }

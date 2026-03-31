@@ -133,6 +133,11 @@ export const useOntologyStore = defineStore('ontology', () => {
     const entity = findEntity(entityId)
     if (!entity) return []
 
+    // 如果实体有手动配置的 tableGraph，从中提取来源（与弹窗展示保持一致）
+    if (entity.tableGraph && entity.tableGraph.nodes.length > 0) {
+      return entity.tableGraph.nodes.map(n => normalizeBinding(n.source))
+    }
+
     if (entity.sourceBindings && entity.sourceBindings.length > 0) {
       return entity.sourceBindings.map(normalizeBinding)
     }
