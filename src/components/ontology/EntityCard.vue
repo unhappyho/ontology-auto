@@ -86,7 +86,30 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="attr in entity.attrs" :key="attr.en" class="attr-row">
+            <!-- SPG 固定属性行 -->
+            <tr v-for="attr in SPG_FIXED_ATTRS" :key="'fixed-' + attr.en" class="attr-row fixed-attr-row">
+              <td class="col-checkbox"></td>
+              <td class="col-term">
+                <div class="attr-term" @click="handleEditTerm({ en: attr.en as string, cn: attr.cn as string } as any)" title="点击调整术语关联">
+                  <LinkOutlined />
+                  <span>{{ (entity.attrs.find(a => a.en === attr.en) as any)?.termName || '关联术语' }}</span>
+                </div>
+              </td>
+              <td class="col-attr">
+                <span class="attr-en">{{ attr.en }}</span>
+                <span class="attr-cn">/ {{ attr.cn }}</span>
+              </td>
+              <td class="col-field">
+                <div class="attr-field" @click="handleEditField({ en: attr.en as string, cn: attr.cn as string } as any)" title="点击调整物理字段映射">
+                  <span class="arrow">→</span>
+                  <span class="field-name">{{ getMappedFieldName(attr.en) }}</span>
+                  <span class="field-source">{{ getMappedFieldSource(attr.en) }}</span>
+                  <SettingOutlined class="edit-icon" />
+                </div>
+              </td>
+              <td class="col-action"></td>
+            </tr>
+            <tr v-for="attr in normalAttrs" :key="attr.en" class="attr-row">
               <td class="col-checkbox">
                 <a-checkbox :checked="selectedAttrs.includes(attr.en)" @change="(e: any) => handleSelectAttr(attr.en, e.target.checked)" />
               </td>
@@ -234,6 +257,12 @@ import { Popconfirm, message } from 'ant-design-vue'
 import type { Entity, EntityAttr, MappingField } from '@/types'
 import { useUIStore, useOntologyStore } from '@/stores'
 
+const SPG_FIXED_ATTRS = [
+  { en: 'id',          cn: 'ID标识' },
+  { en: 'name',        cn: '名称' },
+  { en: 'description', cn: '描述' }
+] as const
+
 interface Props {
   entity: Entity
   color: string
@@ -261,6 +290,10 @@ const tableGraph = computed(() => ontologyStore.getEntityTableGraph(props.entity
 const hasTableJoins = computed(() => tableGraph.value.edges.length > 0)
 const showGraphModal = ref(false)
 
+const normalAttrs = computed(() =>
+  props.entity.attrs.filter(a => !SPG_FIXED_ATTRS.some(f => f.en === a.en))
+)
+
 // 编辑属性状态
 const editingAttrEn = ref<string | null>(null)
 const editingAttrForm = ref({ en: '', cn: '' })
@@ -273,10 +306,10 @@ const addAttrForm = ref<{ en: string; cn: string; termId: string; termName: stri
 const addEnInputRef = ref<HTMLInputElement | null>(null)
 
 const selectAllAttrs = computed({
-  get: () => selectedAttrs.value.length === props.entity.attrs.length && props.entity.attrs.length > 0,
+  get: () => normalAttrs.value.length > 0 && selectedAttrs.value.length === normalAttrs.value.length,
   set: (val: boolean) => {
     if (val) {
-      selectedAttrs.value = props.entity.attrs.map(a => a.en)
+      selectedAttrs.value = normalAttrs.value.map(a => a.en)
     } else {
       selectedAttrs.value = []
     }
@@ -357,7 +390,7 @@ function handleSelectAttr(attrEn: string, checked: boolean) {
 function handleSelectAllAttrs(e: any) {
   const checked = e.target.checked
   if (checked) {
-    selectedAttrs.value = props.entity.attrs.map(a => a.en)
+    selectedAttrs.value = normalAttrs.value.map(a => a.en)
   } else {
     selectedAttrs.value = []
   }
@@ -936,5 +969,13 @@ function cancelAddAttr() {
 .entity-loading-text {
   font-size: 12px;
   color: #595959;
+}
+
+.fixed-attr-row {
+  background: #fffbe6 !important;
+}
+
+.fixed-attr-row td:first-child {
+  border-left: 2px solid #fa8c16;
 }
 </style>
