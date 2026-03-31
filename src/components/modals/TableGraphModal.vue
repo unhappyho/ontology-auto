@@ -8,6 +8,12 @@
   >
     <div class="er-canvas-wrapper">
       <svg class="er-svg" :width="svgWidth" :height="svgHeight">
+        <!-- 箭头 marker -->
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#91caff" />
+          </marker>
+        </defs>
         <!-- 连线 -->
         <g v-for="edge in computedEdges" :key="edge.id">
           <polyline
@@ -24,12 +30,6 @@
             text-anchor="middle"
           >{{ edge.label }}</text>
         </g>
-        <!-- 箭头 marker -->
-        <defs>
-          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#91caff" />
-          </marker>
-        </defs>
       </svg>
       <!-- 节点（绝对定位覆盖在 SVG 上） -->
       <div
