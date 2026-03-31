@@ -115,7 +115,7 @@ export interface MappingAttr {
 export type ConfidenceLevel = 'high' | 'mid' | 'low'
 
 export type RelationCategory = 'entity' | 'event'  // 实体类型关系 | 事件类型关系
-export type RelationType = '1:1' | '1:N' | 'N:N'  // 一对一、一对多、多对多
+export type RelationType = '1:1' | '1:N' | 'N:1' | 'N:N'  // 一对一、一对多、多对一、多对多
 
 export interface MappingLink {
   fieldIndex: number
