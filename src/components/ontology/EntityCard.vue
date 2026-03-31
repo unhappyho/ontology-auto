@@ -68,7 +68,8 @@
           </span>
         </div>
         <div class="source-list">
-          <span v-for="source in entitySources" :key="source.id" class="source-chip">
+          <span v-for="(source, idx) in entitySources" :key="source.id" class="source-chip" :class="{ 'source-chip-primary': idx === 0 }">
+            <span v-if="idx === 0" class="source-primary-badge">主</span>
             {{ formatSourcePath(source) }}
           </span>
         </div>
@@ -754,6 +755,27 @@ function cancelAddAttr() {
   background: #f0f5ff;
   border: 1px solid #adc6ff;
   color: #1d39c4;
+}
+
+.source-chip-primary {
+  background: #e6f4ff;
+  border-color: #1677ff;
+  font-weight: 500;
+}
+
+.source-primary-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: #1677ff;
+  color: #fff;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  margin-right: 4px;
+  flex-shrink: 0;
 }
 
 .attr-table-wrapper {
