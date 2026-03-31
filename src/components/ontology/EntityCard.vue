@@ -62,9 +62,9 @@
       <div class="source-section">
         <div class="source-header">
           <span class="source-title">涉及来源</span>
-          <span v-if="hasTableJoins" class="graph-toggle-btn" @click.stop="showGraph = !showGraph">
+          <span v-if="hasTableJoins" class="graph-toggle-btn" @click.stop="showGraphModal = true">
             <ShareAltOutlined />
-            {{ showGraph ? '收起关联' : '表关联关系' }}
+            表关联关系
           </span>
         </div>
         <div class="source-list">
@@ -72,21 +72,6 @@
             {{ formatSourcePath(source) }}
           </span>
         </div>
-      </div>
-
-      <!-- 来源表关联关系（CSS 横排，按需展开） -->
-      <div v-if="showGraph && hasTableJoins" class="table-graph-view">
-        <template v-for="(node, idx) in tableGraph.nodes" :key="node.id">
-          <div class="table-node">
-            <div class="table-node-name">{{ node.source.table }}</div>
-            <div class="table-node-db">{{ node.source.database }}</div>
-          </div>
-          <div v-if="idx < tableGraph.nodes.length - 1" class="join-connector">
-            <div class="join-line"></div>
-            <div class="join-label">{{ getEdgeLabel(idx) }}</div>
-            <div class="join-arrow">▶</div>
-          </div>
-        </template>
       </div>
 
       <div class="attr-table-wrapper">
@@ -221,11 +206,13 @@
         </table>
       </div>
     </div>
+    <TableGraphModal v-model:visible="showGraphModal" :graph="tableGraph" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
+import TableGraphModal from '@/components/modals/TableGraphModal.vue'
 import {
   StarFilled,
   CheckCircleOutlined,
@@ -272,7 +259,7 @@ const entitySources = computed(() => ontologyStore.getEntitySources(props.entity
 const tableGraph = computed(() => ontologyStore.getEntityTableGraph(props.entity.id))
 
 const hasTableJoins = computed(() => tableGraph.value.edges.length > 0)
-const showGraph = ref(false)
+const showGraphModal = ref(false)
 
 // 编辑属性状态
 const editingAttrEn = ref<string | null>(null)
@@ -295,13 +282,6 @@ const selectAllAttrs = computed({
     }
   }
 })
-
-function getEdgeLabel(nodeIdx: number): string {
-  const edge = tableGraph.value.edges[nodeIdx]
-  if (!edge) return ''
-  const rel = edge.relationType || '1:N'
-  return edge.joinKey ? `${rel} · ${edge.joinKey}` : rel
-}
 
 function formatSourcePath(source: any): string {
   return ontologyStore.formatSourcePath(source)
@@ -741,73 +721,6 @@ function cancelAddAttr() {
   background: #f0f5ff;
   border: 1px solid #adc6ff;
   color: #1d39c4;
-}
-
-/* 来源表关联关系 CSS 横排图 */
-.table-graph-view {
-  display: flex;
-  align-items: center;
-  overflow-x: auto;
-  padding: 12px 8px;
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  margin-bottom: 10px;
-  gap: 0;
-}
-
-.table-node {
-  flex-shrink: 0;
-  background: #f0f5ff;
-  border: 1px solid #adc6ff;
-  border-radius: 6px;
-  padding: 6px 12px;
-  text-align: center;
-  min-width: 80px;
-}
-
-.table-node-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #1d39c4;
-  white-space: nowrap;
-}
-
-.table-node-db {
-  font-size: 10px;
-  color: #8c8c8c;
-  margin-top: 2px;
-  white-space: nowrap;
-}
-
-.join-connector {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 0 4px;
-  min-width: 80px;
-}
-
-.join-line {
-  width: 100%;
-  height: 2px;
-  background: #91d5ff;
-  position: relative;
-}
-
-.join-label {
-  font-size: 9px;
-  color: #595959;
-  white-space: nowrap;
-  margin-top: 3px;
-  text-align: center;
-}
-
-.join-arrow {
-  font-size: 10px;
-  color: #1677ff;
-  margin-top: 2px;
 }
 
 .attr-table-wrapper {
