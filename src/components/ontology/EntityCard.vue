@@ -16,16 +16,6 @@
           :class="['tag-concept-type', entity.entity_concept_type === '活动实体' ? 'tag-activity' : 'tag-business']"
         >{{ entity.entity_sub_class }}</span>
         <span v-if="entity.entity_concept_type === '活动实体' && entity.domain_view" class="tag-domain-view">{{ entity.domain_view }}</span>
-        <!-- 实体级别术语关联 -->
-        <span class="entity-term-chip" @click.stop="handleEditEntityTerm" title="点击调整实体术语关联">
-          <LinkOutlined />
-          <span>{{ entity.termName || '—' }}</span>
-        </span>
-        <!-- 实体标识字段 -->
-        <span class="entity-field-chip" @click.stop="handleEditEntityField" title="点击调整标识字段映射">
-          <span class="chip-arrow">→</span>
-          <span>{{ entityKeyFieldDisplay || '—' }}</span>
-        </span>
       </div>
 
       <div class="entity-card-right">
@@ -280,14 +270,6 @@ const selectedAttrs = ref<string[]>([])
 const isLoading = computed(() => ontologyStore.reextractingEntityId === props.entity.id)
 const entitySources = computed(() => ontologyStore.getEntitySources(props.entity.id))
 const tableGraph = computed(() => ontologyStore.getEntityTableGraph(props.entity.id))
-const entityKeyFieldDisplay = computed(() => {
-  if (!props.entity.keyField) return ''
-  const src = props.entity.keyFieldSource
-  if (src) {
-    return `${props.entity.keyField} · ${src.database}.${src.table}`
-  }
-  return props.entity.keyField
-})
 
 const hasTableJoins = computed(() => tableGraph.value.edges.length > 0)
 const showGraph = ref(false)
@@ -341,14 +323,6 @@ function getMappedFieldSource(attrName: string): string {
 
 function toggleExpand() {
   expanded.value = !expanded.value
-}
-
-function handleEditEntityTerm() {
-  uiStore.openTermLinkModal({ entityId: props.entity.id, attrName: '', isEntityLevel: true })
-}
-
-function handleEditEntityField() {
-  uiStore.openFieldMappingModal({ entityId: props.entity.id, attrName: '', isEntityLevel: true })
 }
 
 function handleSelect(e: any) {
@@ -1049,49 +1023,5 @@ function cancelAddAttr() {
 .entity-loading-text {
   font-size: 12px;
   color: #595959;
-}
-
-.entity-term-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  color: #722ed1;
-  cursor: pointer;
-  padding: 1px 6px;
-  background: #f4eeff;
-  border-radius: 3px;
-  border: 1px solid #d3b4ff;
-  flex-shrink: 0;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-
-.entity-term-chip:hover {
-  background: #e5dbff;
-}
-
-.entity-field-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  color: var(--text-regular);
-  cursor: pointer;
-  padding: 1px 6px;
-  background: #f0f0f0;
-  border-radius: 3px;
-  border: 1px solid var(--border-color);
-  flex-shrink: 0;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-
-.entity-field-chip:hover {
-  background: #e6e6e6;
-}
-
-.entity-field-chip .chip-arrow {
-  color: var(--text-secondary);
 }
 </style>
