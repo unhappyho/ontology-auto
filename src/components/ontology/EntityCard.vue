@@ -46,7 +46,7 @@
       <div class="attr-header">
         <TagOutlined />
         属性列表（{{ entity.attrs.length }} 个）
-        <div class="attr-actions" v-if="entity.attrs.length > 0">
+        <div class="attr-actions" v-if="normalAttrs.length > 0">
           <a-checkbox v-model:checked="selectAllAttrs" @change="handleSelectAllAttrs">全选</a-checkbox>
           <a-button v-if="selectedAttrs.length > 0" type="text" danger size="small" @click="handleBatchDeleteAttrs">
             <DeleteOutlined />
@@ -90,7 +90,7 @@
             <tr v-for="attr in SPG_FIXED_ATTRS" :key="'fixed-' + attr.en" class="attr-row fixed-attr-row">
               <td class="col-checkbox"></td>
               <td class="col-term">
-                <div class="attr-term" @click="handleEditTerm({ en: attr.en as string, cn: attr.cn as string } as any)" title="点击调整术语关联">
+                <div class="attr-term" @click="handleEditTerm({ en: attr.en, cn: attr.cn })" title="点击调整术语关联">
                   <LinkOutlined />
                   <span>{{ (entity.attrs.find(a => a.en === attr.en) as any)?.termName || '关联术语' }}</span>
                 </div>
@@ -100,7 +100,7 @@
                 <span class="attr-cn">/ {{ attr.cn }}</span>
               </td>
               <td class="col-field">
-                <div class="attr-field" @click="handleEditField({ en: attr.en as string, cn: attr.cn as string } as any)" title="点击调整物理字段映射">
+                <div class="attr-field" @click="handleEditField({ en: attr.en, cn: attr.cn })" title="点击调整物理字段映射">
                   <span class="arrow">→</span>
                   <span class="field-name">{{ getMappedFieldName(attr.en) }}</span>
                   <span class="field-source">{{ getMappedFieldSource(attr.en) }}</span>
