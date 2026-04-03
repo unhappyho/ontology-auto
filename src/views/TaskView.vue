@@ -6,124 +6,131 @@
 
       <!-- 步骤内容 -->
       <div class="task-main">
-        <!-- 步骤1: 本体数据采集 -->
-        <div v-if="currentStep === 1" class="workspace-container active">
-          <StepForm v-if="viewMode === 'form'" :key="'form'" />
-          <FlowCanvas v-else :key="'canvas'" />
+        <!-- 图形化视图：跨步骤全局显示 FlowCanvas -->
+        <div v-if="viewMode === 'canvas'" class="workspace-container active">
+          <FlowCanvas :key="'canvas'" />
         </div>
 
-        <!-- 步骤2: 实体数据提取 -->
-        <div v-if="currentStep === 2" class="workspace-container active step2-workspace">
-          <div class="step-page-wrap">
-            <div class="step2-content">
-              <OntologyTree />
-              <EntityList />
-            </div>
-            <div class="step-page-footer">
-              <div class="footer-left">
-                <InfoCircleOutlined />
-                步骤 2 / 5
+        <!-- 表格视图：按步骤渲染各自的表单/列表组件 -->
+        <template v-else>
+          <!-- 步骤1: 本体数据采集 -->
+          <div v-if="currentStep === 1" class="workspace-container active">
+            <StepForm :key="'form'" />
+          </div>
+
+          <!-- 步骤2: 实体数据提取 -->
+          <div v-if="currentStep === 2" class="workspace-container active step2-workspace">
+            <div class="step-page-wrap">
+              <div class="step2-content">
+                <OntologyTree />
+                <EntityList />
               </div>
-              <a-button @click="goToStep(1)">
-                <ArrowLeftOutlined />
-                上一步
-              </a-button>
-              <a-button type="default">
-                <SaveOutlined />
-                保存
-              </a-button>
-              <a-button type="primary" :disabled="isTransitioning" @click="goToStep(3)">
-                下一步：关联构建
-                <ArrowRightOutlined />
-              </a-button>
+              <div class="step-page-footer">
+                <div class="footer-left">
+                  <InfoCircleOutlined />
+                  步骤 2 / 5
+                </div>
+                <a-button @click="goToStep(1)">
+                  <ArrowLeftOutlined />
+                  上一步
+                </a-button>
+                <a-button type="default">
+                  <SaveOutlined />
+                  保存
+                </a-button>
+                <a-button type="primary" :disabled="isTransitioning" @click="goToStep(3)">
+                  下一步：关联构建
+                  <ArrowRightOutlined />
+                </a-button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- 步骤3: 关联构建 -->
-        <div v-if="currentStep === 3" class="workspace-container active step3-workspace">
-          <div class="step-page-wrap">
-            <div class="step3-content">
-              <OntologyTree />
-              <RelationList />
-            </div>
-            <div class="step-page-footer">
-              <div class="footer-left">
-                <InfoCircleOutlined />
-                步骤 3 / 5
+          <!-- 步骤3: 关联构建 -->
+          <div v-if="currentStep === 3" class="workspace-container active step3-workspace">
+            <div class="step-page-wrap">
+              <div class="step3-content">
+                <OntologyTree />
+                <RelationList />
               </div>
-              <a-button @click="goToStep(2)">
-                <ArrowLeftOutlined />
-                上一步
-              </a-button>
-              <a-button type="default">
-                <SaveOutlined />
-                保存
-              </a-button>
-              <a-button type="primary" :disabled="isTransitioning" @click="goToStep(4)">
-                下一步：规则识别
-                <ArrowRightOutlined />
-              </a-button>
+              <div class="step-page-footer">
+                <div class="footer-left">
+                  <InfoCircleOutlined />
+                  步骤 3 / 5
+                </div>
+                <a-button @click="goToStep(2)">
+                  <ArrowLeftOutlined />
+                  上一步
+                </a-button>
+                <a-button type="default">
+                  <SaveOutlined />
+                  保存
+                </a-button>
+                <a-button type="primary" :disabled="isTransitioning" @click="goToStep(4)">
+                  下一步：规则识别
+                  <ArrowRightOutlined />
+                </a-button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- 步骤4: 实体逻辑 -->
-        <div v-if="currentStep === 4" class="workspace-container active step4-workspace">
-          <div class="step-page-wrap">
-            <EntityLogic />
-            <div class="step-page-footer">
-              <div class="footer-left">
-                <InfoCircleOutlined />
-                步骤 4 / 5
+          <!-- 步骤4: 实体逻辑 -->
+          <div v-if="currentStep === 4" class="workspace-container active step4-workspace">
+            <div class="step-page-wrap">
+              <EntityLogic />
+              <div class="step-page-footer">
+                <div class="footer-left">
+                  <InfoCircleOutlined />
+                  步骤 4 / 5
+                </div>
+                <a-button @click="goToStep(3)">
+                  <ArrowLeftOutlined />
+                  上一步
+                </a-button>
+                <a-button type="default">
+                  <SaveOutlined />
+                  保存
+                </a-button>
+                <a-button type="primary" :disabled="isTransitioning" @click="goToStep(5)">
+                  下一步：业务规则
+                  <ArrowRightOutlined />
+                </a-button>
               </div>
-              <a-button @click="goToStep(3)">
-                <ArrowLeftOutlined />
-                上一步
-              </a-button>
-              <a-button type="default">
-                <SaveOutlined />
-                保存
-              </a-button>
-              <a-button type="primary" :disabled="isTransitioning" @click="goToStep(5)">
-                下一步：业务规则
-                <ArrowRightOutlined />
-              </a-button>
             </div>
           </div>
-        </div>
 
-        <!-- 步骤5: 业务规则 -->
-        <div v-if="currentStep === 5" class="workspace-container active step5-workspace">
-          <div class="step-page-wrap">
-            <BusinessRules />
-            <div class="step-page-footer">
-              <div class="footer-left">
-                <InfoCircleOutlined />
-                步骤 5 / 5
+          <!-- 步骤5: 业务规则 -->
+          <div v-if="currentStep === 5" class="workspace-container active step5-workspace">
+            <div class="step-page-wrap">
+              <BusinessRules />
+              <div class="step-page-footer">
+                <div class="footer-left">
+                  <InfoCircleOutlined />
+                  步骤 5 / 5
+                </div>
+                <a-button @click="goToStep(4)">
+                  <ArrowLeftOutlined />
+                  上一步
+                </a-button>
+                <a-button type="default">
+                  <SaveOutlined />
+                  保存
+                </a-button>
+                <a-button type="primary" style="background: var(--success-color); border-color: var(--success-color);" @click="handleComplete">
+                  <CheckOutlined />
+                  完成并提交
+                </a-button>
               </div>
-              <a-button @click="goToStep(4)">
-                <ArrowLeftOutlined />
-                上一步
-              </a-button>
-              <a-button type="default">
-                <SaveOutlined />
-                保存
-              </a-button>
-              <a-button type="primary" style="background: var(--success-color); border-color: var(--success-color);" @click="handleComplete">
-                <CheckOutlined />
-                完成并提交
-              </a-button>
             </div>
           </div>
-        </div>
 
-        <!-- 步骤切换过渡 overlay -->
-        <div v-if="isTransitioning" class="step-transition-overlay">
-          <a-spin size="large" />
-          <div class="transition-text">AI 正在识别分析，准备进入「{{ transitionStepName }}」步骤...</div>
-          <div class="transition-progress-bar"></div>
-        </div>
+          <!-- 步骤切换过渡 overlay -->
+          <div v-if="isTransitioning" class="step-transition-overlay">
+            <a-spin size="large" />
+            <div class="transition-text">AI 正在识别分析，准备进入「{{ transitionStepName }}」步骤...</div>
+            <div class="transition-progress-bar"></div>
+          </div>
+        </template>
       </div>
 
     </div>

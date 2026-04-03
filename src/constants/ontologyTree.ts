@@ -269,7 +269,23 @@ export const ENTITY_DATA: Record<string, Entity[]> = {
       attrs: [
       { en: 'userId', cn: '用户ID', termId: 'term_001', termName: '标准用户ID' }, { en: 'userName', cn: '用户姓名', termId: 'term_010', termName: '用户名称' }, { en: 'phoneNumber', cn: '手机号码', termId: 'term_002', termName: '联系电话' },
       { en: 'email', cn: '邮箱', termId: 'term_011', termName: '电子邮箱' }, { en: 'status', cn: '账户状态', termId: 'term_012', termName: '账号状态' }, { en: 'createTime', cn: '注册时间', termId: 'term_013', termName: '创建时间' }
-    ]},
+    ],
+      tableGraph: {
+        nodes: [
+          { id: 'n_t_user',            source: { id: 'crm_api.crm_db.t_user',            dataSource: 'crm_api', database: 'crm_db', table: 't_user' } },
+          { id: 'n_dim_user_level',    source: { id: 'crm_api.dim_db.dim_user_level',    dataSource: 'crm_api', database: 'dim_db', table: 'dim_user_level' } },
+          { id: 'n_dim_region',        source: { id: 'crm_api.dim_db.dim_region',        dataSource: 'crm_api', database: 'dim_db', table: 'dim_region' } },
+          { id: 'n_dim_channel',       source: { id: 'crm_api.dim_db.dim_channel',       dataSource: 'crm_api', database: 'dim_db', table: 'dim_channel' } },
+          { id: 'n_t_user_order_stat', source: { id: 'dw_api.dw_db.t_user_order_stat',  dataSource: 'dw_api',  database: 'dw_db',  table: 't_user_order_stat' } }
+        ],
+        edges: [
+          { id: 'eg1', sourceNodeId: 'n_t_user', targetNodeId: 'n_dim_user_level',    relationType: 'N:1', joinKey: 'level_id' },
+          { id: 'eg2', sourceNodeId: 'n_t_user', targetNodeId: 'n_dim_region',        relationType: 'N:1', joinKey: 'region_id' },
+          { id: 'eg3', sourceNodeId: 'n_t_user', targetNodeId: 'n_dim_channel',       relationType: 'N:1', joinKey: 'channel_id' },
+          { id: 'eg4', sourceNodeId: 'n_t_user', targetNodeId: 'n_t_user_order_stat', relationType: '1:N', joinKey: 'user_id' }
+        ]
+      }
+    },
     { id: 'e2', name: 'UserAuth', nameCn: '认证信息', isNew: true, entity_concept_type: '业务实体', entity_sub_class: '人', domain_view: null,
       termId: 'term_014', termName: '用户认证', keyField: 'auth_id', keyFieldSource: { id: 'crm_api.crm_db.t_user_auth', dataSource: 'crm_api', database: 'crm_db', table: 't_user_auth' },
       attrs: [

@@ -16,16 +16,6 @@
           :class="['tag-concept-type', entity.entity_concept_type === '活动实体' ? 'tag-activity' : 'tag-business']"
         >{{ entity.entity_sub_class }}</span>
         <span v-if="entity.entity_concept_type === '活动实体' && entity.domain_view" class="tag-domain-view">{{ entity.domain_view }}</span>
-        <!-- 实体级别术语关联 -->
-        <span class="entity-term-chip" @click.stop="handleEditEntityTerm" title="点击调整实体术语关联">
-          <LinkOutlined />
-          <span>{{ entity.termName || '—' }}</span>
-        </span>
-        <!-- 实体标识字段 -->
-        <span class="entity-field-chip" @click.stop="handleEditEntityField" title="点击调整标识字段映射">
-          <span class="chip-arrow">→</span>
-          <span>{{ entityKeyFieldDisplay || '—' }}</span>
-        </span>
       </div>
 
       <div class="entity-card-right">
@@ -56,7 +46,7 @@
       <div class="attr-header">
         <TagOutlined />
         属性列表（{{ entity.attrs.length }} 个）
-        <div class="attr-actions" v-if="entity.attrs.length > 0">
+        <div class="attr-actions" v-if="normalAttrs.length > 0">
           <a-checkbox v-model:checked="selectAllAttrs" @change="handleSelectAllAttrs">全选</a-checkbox>
           <a-button v-if="selectedAttrs.length > 0" type="text" danger size="small" @click="handleBatchDeleteAttrs">
             <DeleteOutlined />
@@ -72,31 +62,17 @@
       <div class="source-section">
         <div class="source-header">
           <span class="source-title">涉及来源</span>
-          <span v-if="hasTableJoins" class="graph-toggle-btn" @click.stop="showGraph = !showGraph">
+          <span v-if="hasTableJoins" class="graph-toggle-btn" @click.stop="showGraphModal = true">
             <ShareAltOutlined />
-            {{ showGraph ? '收起关联' : '表关联关系' }}
+            表关联关系
           </span>
         </div>
         <div class="source-list">
-          <span v-for="source in entitySources" :key="source.id" class="source-chip">
+          <span v-for="(source, idx) in entitySources" :key="source.id" class="source-chip" :class="{ 'source-chip-primary': idx === 0 }">
+            <span v-if="idx === 0" class="source-primary-badge">主</span>
             {{ formatSourcePath(source) }}
           </span>
         </div>
-      </div>
-
-      <!-- 来源表关联关系（CSS 横排，按需展开） -->
-      <div v-if="showGraph && hasTableJoins" class="table-graph-view">
-        <template v-for="(node, idx) in tableGraph.nodes" :key="node.id">
-          <div class="table-node">
-            <div class="table-node-name">{{ node.source.table }}</div>
-            <div class="table-node-db">{{ node.source.database }}</div>
-          </div>
-          <div v-if="idx < tableGraph.nodes.length - 1" class="join-connector">
-            <div class="join-line"></div>
-            <div class="join-label">{{ getEdgeLabel(idx) }}</div>
-            <div class="join-arrow">▶</div>
-          </div>
-        </template>
       </div>
 
       <div class="attr-table-wrapper">
@@ -111,7 +87,30 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="attr in entity.attrs" :key="attr.en" class="attr-row">
+            <!-- SPG 固定属性行 -->
+            <tr v-for="attr in SPG_FIXED_ATTRS" :key="'fixed-' + attr.en" class="attr-row fixed-attr-row">
+              <td class="col-checkbox"></td>
+              <td class="col-term">
+                <div class="attr-term" @click="handleEditTerm({ en: attr.en, cn: attr.cn })" title="点击调整术语关联">
+                  <LinkOutlined />
+                  <span>{{ (entity.attrs.find(a => a.en === attr.en) as any)?.termName || '关联术语' }}</span>
+                </div>
+              </td>
+              <td class="col-attr">
+                <span class="attr-en">{{ attr.en }}</span>
+                <span class="attr-cn">/ {{ attr.cn }}</span>
+              </td>
+              <td class="col-field">
+                <div class="attr-field" @click="handleEditField({ en: attr.en, cn: attr.cn })" title="点击调整物理字段映射">
+                  <span class="arrow">→</span>
+                  <span class="field-name">{{ getMappedFieldName(attr.en) }}</span>
+                  <span class="field-source">{{ getMappedFieldSource(attr.en) }}</span>
+                  <SettingOutlined class="edit-icon" />
+                </div>
+              </td>
+              <td class="col-action"></td>
+            </tr>
+            <tr v-for="attr in normalAttrs" :key="attr.en" class="attr-row">
               <td class="col-checkbox">
                 <a-checkbox :checked="selectedAttrs.includes(attr.en)" @change="(e: any) => handleSelectAttr(attr.en, e.target.checked)" />
               </td>
@@ -231,11 +230,13 @@
         </table>
       </div>
     </div>
+    <TableGraphModal v-model:visible="showGraphModal" :graph="tableGraph" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
+import TableGraphModal from '@/components/modals/TableGraphModal.vue'
 import {
   StarFilled,
   CheckCircleOutlined,
@@ -256,6 +257,12 @@ import {
 import { Popconfirm, message } from 'ant-design-vue'
 import type { Entity, EntityAttr, MappingField } from '@/types'
 import { useUIStore, useOntologyStore } from '@/stores'
+
+const SPG_FIXED_ATTRS = [
+  { en: 'id',          cn: 'ID标识' },
+  { en: 'name',        cn: '名称' },
+  { en: 'description', cn: '描述' }
+] as const
 
 interface Props {
   entity: Entity
@@ -280,17 +287,13 @@ const selectedAttrs = ref<string[]>([])
 const isLoading = computed(() => ontologyStore.reextractingEntityId === props.entity.id)
 const entitySources = computed(() => ontologyStore.getEntitySources(props.entity.id))
 const tableGraph = computed(() => ontologyStore.getEntityTableGraph(props.entity.id))
-const entityKeyFieldDisplay = computed(() => {
-  if (!props.entity.keyField) return ''
-  const src = props.entity.keyFieldSource
-  if (src) {
-    return `${props.entity.keyField} · ${src.database}.${src.table}`
-  }
-  return props.entity.keyField
-})
 
-const hasTableJoins = computed(() => tableGraph.value.edges.length > 0)
-const showGraph = ref(false)
+const hasTableJoins = computed(() => tableGraph.value.nodes.length > 1)
+const showGraphModal = ref(false)
+
+const normalAttrs = computed(() =>
+  props.entity.attrs.filter(a => !SPG_FIXED_ATTRS.some(f => f.en === a.en))
+)
 
 // 编辑属性状态
 const editingAttrEn = ref<string | null>(null)
@@ -304,22 +307,15 @@ const addAttrForm = ref<{ en: string; cn: string; termId: string; termName: stri
 const addEnInputRef = ref<HTMLInputElement | null>(null)
 
 const selectAllAttrs = computed({
-  get: () => selectedAttrs.value.length === props.entity.attrs.length && props.entity.attrs.length > 0,
+  get: () => normalAttrs.value.length > 0 && selectedAttrs.value.length === normalAttrs.value.length,
   set: (val: boolean) => {
     if (val) {
-      selectedAttrs.value = props.entity.attrs.map(a => a.en)
+      selectedAttrs.value = normalAttrs.value.map(a => a.en)
     } else {
       selectedAttrs.value = []
     }
   }
 })
-
-function getEdgeLabel(nodeIdx: number): string {
-  const edge = tableGraph.value.edges[nodeIdx]
-  if (!edge) return ''
-  const rel = edge.relationType || '1:N'
-  return edge.joinKey ? `${rel} · ${edge.joinKey}` : rel
-}
 
 function formatSourcePath(source: any): string {
   return ontologyStore.formatSourcePath(source)
@@ -341,14 +337,6 @@ function getMappedFieldSource(attrName: string): string {
 
 function toggleExpand() {
   expanded.value = !expanded.value
-}
-
-function handleEditEntityTerm() {
-  uiStore.openTermLinkModal({ entityId: props.entity.id, attrName: '', isEntityLevel: true })
-}
-
-function handleEditEntityField() {
-  uiStore.openFieldMappingModal({ entityId: props.entity.id, attrName: '', isEntityLevel: true })
 }
 
 function handleSelect(e: any) {
@@ -403,7 +391,7 @@ function handleSelectAttr(attrEn: string, checked: boolean) {
 function handleSelectAllAttrs(e: any) {
   const checked = e.target.checked
   if (checked) {
-    selectedAttrs.value = props.entity.attrs.map(a => a.en)
+    selectedAttrs.value = normalAttrs.value.map(a => a.en)
   } else {
     selectedAttrs.value = []
   }
@@ -769,71 +757,25 @@ function cancelAddAttr() {
   color: #1d39c4;
 }
 
-/* 来源表关联关系 CSS 横排图 */
-.table-graph-view {
-  display: flex;
+.source-chip-primary {
+  background: #e6f4ff;
+  border-color: #1677ff;
+  font-weight: 500;
+}
+
+.source-primary-badge {
+  display: inline-flex;
   align-items: center;
-  overflow-x: auto;
-  padding: 12px 8px;
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  margin-bottom: 10px;
-  gap: 0;
-}
-
-.table-node {
-  flex-shrink: 0;
-  background: #f0f5ff;
-  border: 1px solid #adc6ff;
-  border-radius: 6px;
-  padding: 6px 12px;
-  text-align: center;
-  min-width: 80px;
-}
-
-.table-node-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #1d39c4;
-  white-space: nowrap;
-}
-
-.table-node-db {
-  font-size: 10px;
-  color: #8c8c8c;
-  margin-top: 2px;
-  white-space: nowrap;
-}
-
-.join-connector {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 0 4px;
-  min-width: 80px;
-}
-
-.join-line {
-  width: 100%;
-  height: 2px;
-  background: #91d5ff;
-  position: relative;
-}
-
-.join-label {
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: #1677ff;
+  color: #fff;
+  border-radius: 2px;
   font-size: 9px;
-  color: #595959;
-  white-space: nowrap;
-  margin-top: 3px;
-  text-align: center;
-}
-
-.join-arrow {
-  font-size: 10px;
-  color: #1677ff;
-  margin-top: 2px;
+  font-weight: 600;
+  margin-right: 4px;
+  flex-shrink: 0;
 }
 
 .attr-table-wrapper {
@@ -1051,47 +993,11 @@ function cancelAddAttr() {
   color: #595959;
 }
 
-.entity-term-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  color: #722ed1;
-  cursor: pointer;
-  padding: 1px 6px;
-  background: #f4eeff;
-  border-radius: 3px;
-  border: 1px solid #d3b4ff;
-  flex-shrink: 0;
-  white-space: nowrap;
-  transition: background 0.15s;
+.fixed-attr-row {
+  background: #fffbe6 !important;
 }
 
-.entity-term-chip:hover {
-  background: #e5dbff;
-}
-
-.entity-field-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  color: var(--text-regular);
-  cursor: pointer;
-  padding: 1px 6px;
-  background: #f0f0f0;
-  border-radius: 3px;
-  border: 1px solid var(--border-color);
-  flex-shrink: 0;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-
-.entity-field-chip:hover {
-  background: #e6e6e6;
-}
-
-.entity-field-chip .chip-arrow {
-  color: var(--text-secondary);
+.fixed-attr-row td:first-child {
+  border-left: 2px solid #fa8c16;
 }
 </style>

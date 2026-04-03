@@ -25,7 +25,7 @@
           <defs>
             <!-- 背景点阵 -->
             <pattern id="dot-grid" width="32" height="32" patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" r="1" fill="rgba(255,255,255,0.10)" />
+              <circle cx="1" cy="1" r="1" fill="rgba(0,0,0,0.06)" />
             </pattern>
             <!-- 边发光滤镜 -->
             <filter id="edge-glow" x="-20%" y="-20%" width="140%" height="140%">
@@ -37,7 +37,7 @@
             </filter>
             <!-- 箭头 -->
             <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="rgba(255,255,255,0.55)" />
+              <polygon points="0 0, 8 3, 0 6" fill="#91caff" />
             </marker>
             <!-- 每条边的渐变色 -->
             <linearGradient
@@ -374,7 +374,7 @@ function resetView() {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #0a0e1a 0%, #0d1b2a 60%, #071020 100%);
+  background: #f5f7fa;
   position: relative;
   overflow: hidden;
 }
@@ -384,24 +384,23 @@ function resetView() {
   display: flex;
   gap: 8px;
   padding: 10px 16px;
-  background: rgba(10, 14, 26, 0.80);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(8px);
+  background: #ffffff;
+  border-bottom: 1px solid #e8e8e8;
   flex-shrink: 0;
   z-index: 10;
 }
 
 .toolbar-btn {
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  color: rgba(220, 230, 255, 0.85) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: var(--border-color, #d9d9d9) !important;
+  color: #595959 !important;
+  background: #ffffff !important;
   font-size: 12px;
 }
 
 .toolbar-btn:hover {
-  border-color: rgba(77, 158, 255, 0.6) !important;
-  color: #4D9EFF !important;
-  background: rgba(77, 158, 255, 0.1) !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+  background: #e6f4ff !important;
 }
 
 /* ===== 画布容器 ===== */
@@ -446,7 +445,7 @@ function resetView() {
 
 .edge-label {
   font-size: 11px;
-  fill: rgba(200, 220, 255, 0.75);
+  fill: #595959;
   pointer-events: none;
   font-weight: 500;
   letter-spacing: 0.5px;
@@ -538,8 +537,7 @@ function resetView() {
   white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
-  color: rgba(220, 235, 255, 0.92);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  color: #262626;
   pointer-events: none;
   letter-spacing: 0.3px;
 }
@@ -577,13 +575,12 @@ function resetView() {
   top: 0;
   width: 264px;
   height: 100%;
-  background: rgba(8, 16, 32, 0.92);
-  border-left: 1px solid rgba(77, 158, 255, 0.2);
-  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.96);
+  border-left: 1px solid #e8e8e8;
   z-index: 100;
   display: flex;
   flex-direction: column;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
 }
 
 .panel-header {
@@ -591,7 +588,7 @@ function resetView() {
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .panel-title {
@@ -600,7 +597,7 @@ function resetView() {
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: rgba(220, 235, 255, 0.92);
+  color: #262626;
   letter-spacing: 0.5px;
 }
 
@@ -612,12 +609,12 @@ function resetView() {
 }
 
 .close-btn {
-  color: rgba(180, 200, 255, 0.5) !important;
+  color: #8c8c8c !important;
 }
 
 .close-btn:hover {
-  color: rgba(220, 235, 255, 0.9) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  color: #262626 !important;
+  background: #f5f5f5 !important;
 }
 
 .panel-body {
@@ -635,7 +632,7 @@ function resetView() {
 }
 
 .panel-body::-webkit-scrollbar-thumb {
-  background: rgba(77, 158, 255, 0.3);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 2px;
 }
 
@@ -646,7 +643,7 @@ function resetView() {
 .detail-item label {
   display: block;
   font-size: 11px;
-  color: rgba(120, 160, 220, 0.65);
+  color: #8c8c8c;
   margin-bottom: 4px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -654,19 +651,19 @@ function resetView() {
 
 .detail-value {
   font-size: 13px;
-  color: rgba(200, 220, 255, 0.85);
+  color: #262626;
 }
 
 .detail-value.primary {
   font-size: 16px;
   font-weight: 700;
-  color: rgba(230, 240, 255, 0.98);
+  color: #141414;
 }
 
 .detail-value.mono {
   font-size: 12px;
   font-family: 'SF Mono', 'Fira Code', monospace;
-  color: rgba(160, 200, 255, 0.7);
+  color: #1677ff;
 }
 
 .type-tag {
@@ -679,7 +676,7 @@ function resetView() {
 
 .panel-divider {
   font-size: 11px;
-  color: rgba(100, 140, 200, 0.5);
+  color: #8c8c8c;
   letter-spacing: 1px;
   text-transform: uppercase;
   margin: 16px 0 12px;
@@ -692,7 +689,7 @@ function resetView() {
   content: '';
   flex: 1;
   height: 1px;
-  background: rgba(77, 158, 255, 0.15);
+  background: #f0f0f0;
 }
 
 /* ===== Transition ===== */
