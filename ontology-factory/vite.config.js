@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/factory/',
+  base: '/xc007/factory/',
   root: '.',
   publicDir: 'public',
   build: {
