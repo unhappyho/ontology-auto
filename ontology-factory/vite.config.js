@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 
-export default defineConfig({
-  base: '/xc007/factory/',
+export default defineConfig(({ command }) => ({
+  base: command === 'serve' ? '/factory/' : '/xc007/factory/',
   root: '.',
   publicDir: 'public',
   build: {
@@ -12,4 +12,4 @@ export default defineConfig({
     port: 3000,
     open: false,
   },
-})
+}))
