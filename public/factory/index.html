@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>浩鲸数据工厂 - 本体构建</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script type="module" crossorigin src="/factory/assets/index-WxvdauF8.js"></script>
+  <link rel="stylesheet" crossorigin href="/factory/assets/index-CCwfEnus.css">
+</head>
+<body>
+    <!-- 顶栏 -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo-icon"><i class="fa-solid fa-layer-group"></i></div>
+            <span class="header-title">浩鲸数据工厂</span>
+            <span class="header-subtitle">本体构建</span>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator">
+                <span class="status-dot-header"></span>
+                <span>已连接</span>
+            </div>
+            <div class="header-actions">
+                <i class="fa-solid fa-bell"></i>
+                <i class="fa-solid fa-gear"></i>
+                <i class="fa-solid fa-user"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- 视图1: 任务列表 -->
+    <section id="listView" class="view-section active">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="menu-item active"><i class="fa-solid fa-list-check"></i><span>任务列表</span></div>
+            <div class="menu-group-title"><span>数据源</span><i class="fa-solid fa-chevron-down"></i></div>
+            <div class="submenu">
+                <div class="menu-item"><i class="fa-solid fa-database"></i><span>数据表</span></div>
+                <div class="menu-item"><i class="fa-solid fa-file-pdf"></i><span>PDF文档</span></div>
+                <div class="menu-item"><i class="fa-solid fa-code"></i><span>脚本数据</span></div>
+            </div>
+            <div class="menu-group-title"><span>知识库</span><i class="fa-solid fa-chevron-down"></i></div>
+            <div class="submenu">
+                <div class="menu-item"><i class="fa-solid fa-cube"></i><span>本体管理</span></div>
+                <div class="menu-item"><i class="fa-solid fa-network-wired"></i><span>实体库</span></div>
+                <div class="menu-item"><i class="fa-solid fa-link"></i><span>关系图谱</span></div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <div class="list-content-area">
+            <!-- 空间配置卡片 -->
+            <div class="workspace-card">
+                <div class="workspace-card-header">
+                    <div class="workspace-title"><i class="fa-solid fa-server"></i>空间配置</div>
+                </div>
+                <div class="workspace-grid">
+                    <div class="info-item">
+                        <span class="info-dot"></span>
+                        <span class="info-label">当前空间</span>
+                        <span class="info-value">默认空间</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-dot" style="background: #722ED1;"></span>
+                        <span class="info-label">数据模型</span>
+                        <span class="info-value">12 个</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-dot" style="background: #FA8C16;"></span>
+                        <span class="info-label">运行任务</span>
+                        <span class="info-value">3 个</span>
+                        <span class="info-badge">进行中</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-dot" style="background: #00B42A;"></span>
+                        <span class="info-label">本月处理</span>
+                        <span class="info-value">1.2GB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务列表卡片 -->
+            <div class="content-card">
+                <div class="section-header">
+                    <div class="section-title">任务列表</div>
+                    <div class="section-actions">
+                        <button class="btn btn-primary" onclick="createNewTask()"><i class="fa-solid fa-plus"></i>新建任务</button>
+                    </div>
+                </div>
+                <div class="table-scroll">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>任务名称</th>
+                                <th>类型</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>完成度</th>
+                                <th class="col-actions">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taskTableBody">
+                            <!-- 任务数据将通过JS渲染 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-container">
+                    <span>共 <span id="taskTotalCount">5</span> 条记录</span>
+                    <div class="pagination">
+                        <div class="page-item"><i class="fa-solid fa-chevron-left"></i></div>
+                        <div class="page-item active">1</div>
+                        <div class="page-item">2</div>
+                        <div class="page-item">3</div>
+                        <div class="page-item"><i class="fa-solid fa-chevron-right"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 视图2: 任务编辑器 -->
+    <section id="taskView" class="view-section">
+        <div class="editor-topbar">
+            <div class="editor-title-area">
+                <i class="fa-solid fa-arrow-left back-btn" onclick="goBack()"></i>
+                <span id="taskName">CRM用户画像构建任务</span>
+                <div class="view-mode-switch">
+                    <div class="mode-btn active" onclick="switchViewMode('form')"><i class="fa-solid fa-list"></i>表单</div>
+                    <div class="mode-btn" onclick="switchViewMode('canvas')"><i class="fa-solid fa-pen-to-square"></i>画布</div>
+                </div>
+            </div>
+            <div class="stepper-nav" id="stepperNav">
+                <!-- 步骤导航将通过JS渲染 -->
+            </div>
+            <div>
+                <button class="btn btn-ghost btn-sm">保存草稿</button>
+                <button class="btn btn-primary btn-sm" onclick="runTask()">执行任务</button>
+            </div>
+        </div>
+
+        <!-- 步骤1: 数据采集 -->
+        <div id="step1Page" class="step-page-wrap">
+            <div class="step-page-body">
+                <div class="form-page-container">
+                    <div class="form-page-title">本体数据采集</div>
+                    <div class="form-page-desc">选择数据来源，配置数据采集策略</div>
+
+                    <div class="form-section-card">
+                        <div class="form-section-title"><span class="step-badge">1</span>数据来源</div>
+                        <div class="form-row">
+                            <div class="form-label">数据类型</div>
+                            <div class="form-control">
+                                <div class="segmented-control">
+                                    <div class="segment-btn active" onclick="selectDataType(this, 'db')">数据库</div>
+                                    <div class="segment-btn" onclick="selectDataType(this, 'pdf')">PDF文档</div>
+                                    <div class="segment-btn" onclick="selectDataType(this, 'script')">脚本</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-label">数据源</div>
+                            <div class="form-control">
+                                <select class="b-select" id="dataSourceSelect">
+                                    <option>请选择数据源</option>
+                                    <option>MySQL 生产库</option>
+                                    <option>PostgreSQL 数据仓库</option>
+                                    <option>Oracle 业务库</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section-card">
+                        <div class="form-section-title"><span class="step-badge">2</span>数据范围</div>
+                        <div class="search-box-wrapper">
+                            <div class="search-input-wrapper">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input type="text" class="search-input" placeholder="搜索表名...">
+                            </div>
+                        </div>
+                        <table class="scope-table">
+                            <thead>
+                                <tr>
+                                    <th class="td-checkbox"><input type="checkbox" checked></th>
+                                    <th>表名</th>
+                                    <th>说明</th>
+                                    <th>记录数</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableListBody">
+                                <tr>
+                                    <td><input type="checkbox" checked></td>
+                                    <td><span class="tb-name"><i class="fa-solid fa-table" style="color:#722ED1;"></i>user_info</span><span class="tb-comment">用户基本信息表</span></td>
+                                    <td class="ellipsis-text">存储用户基本信息和联系方式</td>
+                                    <td>125,680</td>
+                                </tr>
+                                <tr>
+                                    <td><input type="checkbox" checked></td>
+                                    <td><span class="tb-name"><i class="fa-solid fa-table" style="color:#722ED1;"></i>user_profile</span><span class="tb-comment">用户画像表</span></td>
+                                    <td class="ellipsis-text">用户标签和画像数据</td>
+                                    <td>98,420</td>
+                                </tr>
+                                <tr>
+                                    <td><input type="checkbox"></td>
+                                    <td><span class="tb-name"><i class="fa-solid fa-table" style="color:#722ED1;"></i>order_info</span><span class="tb-comment">订单信息表</span></td>
+                                    <td class="ellipsis-text">订单主表</td>
+                                    <td>856,230</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="table-pagination">
+                            <span>已选 2/8 张表</span>
+                            <div class="pagination">
+                                <div class="page-item active">1</div>
+                                <div class="page-item">2</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section-card">
+                        <div class="form-section-title"><span class="step-badge">3</span>自定义脚本</div>
+                        <div class="script-action-area">
+                            <i class="fa-solid fa-code" style="color:var(--primary-color);font-size:18px;"></i>
+                            <span class="script-hint">使用自定义脚本进行数据预处理</span>
+                            <button class="btn btn-ghost btn-sm" onclick="openScriptModal()"><i class="fa-solid fa-pen"></i>编辑脚本</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="step-page-footer">
+                <div class="footer-left"><i class="fa-solid fa-circle-info"></i>自动保存中...</div>
+                <button class="btn" onclick="prevStep(1)">上一步</button>
+                <button class="btn btn-primary" onclick="nextStep(1)">下一步</button>
+            </div>
+        </div>
+
+        <!-- 步骤2: 实体提取 -->
+        <div id="step2Page" class="step-page-wrap" style="display:none;">
+            <div class="step2-workspace">
+                <!-- 本体目录树 -->
+                <div class="ontology-panel">
+                    <div class="ontology-panel-header">
+                        <span class="ontology-panel-title">本体目录</span>
+                        <button class="btn btn-ghost btn-sm" onclick="showAiRecognition()"><i class="fa-solid fa-wand-magic-sparkles"></i>AI识别</button>
+                    </div>
+                    <div class="ontology-panel-body" id="ontologyTreeBody">
+                        <!-- 本体树将通过JS渲染 -->
+                    </div>
+                </div>
+
+                <!-- 右侧内容区 -->
+                <div class="entity-workspace">
+                    <div class="entity-workspace-header">
+                        <div class="entity-workspace-title-row">
+                            <div class="entity-workspace-title">
+                                <i class="fa-solid fa-folder-open"></i>
+                                <span id="currentOntologyName">基本信息实体组</span>
+                            </div>
+                            <div class="entity-workspace-stats">
+                                <div class="stat-item"><span class="stat-num" id="statTotal">5</span> 总实体</div>
+                                <div class="stat-item"><span class="stat-num" id="statNew" style="color:var(--success-color);">3</span> 新发现</div>
+                                <div class="stat-item"><span class="stat-num" id="statExisting" style="color:var(--text-secondary);">2</span> 已入库</div>
+                            </div>
+                        </div>
+                        <div class="entity-workspace-actions">
+                            <button class="btn btn-sm" onclick="confirmReextract()"><i class="fa-solid fa-rotate"></i>重新识别</button>
+                            <button class="btn btn-primary btn-sm" onclick="nextStep(2)"><i class="fa-solid fa-check"></i>确认提取</button>
+                        </div>
+                    </div>
+                    <div class="entity-list-container" id="entityListBody">
+                        <!-- 实体列表将通过JS渲染 -->
+                    </div>
+                </div>
+
+                <!-- 映射面板 -->
+                <div class="mapping-panel">
+                    <div class="mapping-panel-header">
+                        <span class="mapping-panel-title">字段映射</span>
+                        <div class="mapping-panel-actions">
+                            <div class="mapping-view-toggle">
+                                <div class="mapping-view-btn active" id="btnLineView" onclick="switchMappingView('line')">连线</div>
+                                <div class="mapping-view-btn" id="btnTableView" onclick="switchMappingView('table')">表格</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mapping-panel-body">
+                        <div class="mapping-line-view" id="mappingLineView">
+                            <div class="mapping-col" id="mappingLeftCol"></div>
+                            <div class="mapping-svg-container">
+                                <svg id="mappingSvg"></svg>
+                            </div>
+                            <div class="mapping-col" id="mappingRightCol"></div>
+                        </div>
+                        <div id="mappingTableView" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤3: 关联构建 -->
+        <div id="step3Page" class="step-page-wrap" style="display:none;">
+            <div class="step-page-body">
+                <div class="form-page-container">
+                    <div class="form-page-title">关联构建</div>
+                    <div class="form-page-desc">配置实体间的关联关系</div>
+                    <div class="form-section-card">
+                        <p style="color:var(--text-secondary);padding:40px;text-align:center;">关联构建画布待实现...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="step-page-footer">
+                <button class="btn" onclick="prevStep(3)">上一步</button>
+                <button class="btn btn-primary" onclick="nextStep(3)">下一步</button>
+            </div>
+        </div>
+
+        <!-- 步骤4: 知识融合 -->
+        <div id="step4Page" class="step-page-wrap" style="display:none;">
+            <div class="step-page-body">
+                <div class="form-page-container">
+                    <div class="form-page-title">知识融合入库</div>
+                    <div class="form-page-desc">将处理后的数据入库到知识库</div>
+                    <div class="form-section-card">
+                        <div class="form-row">
+                            <div class="form-label">目标库</div>
+                            <div class="form-control">
+                                <select class="b-select">
+                                    <option>主知识库</option>
+                                    <option>测试知识库</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-label">入库模式</div>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="importMode" checked> 全量覆盖</label>
+                                <label class="radio-label"><input type="radio" name="importMode"> 增量追加</label>
+                                <label class="radio-label"><input type="radio" name="importMode"> 仅验证</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="step-page-footer">
+                <button class="btn" onclick="prevStep(4)">上一步</button>
+                <button class="btn btn-success" onclick="startImport()"><i class="fa-solid fa-upload"></i>开始入库</button>
+            </div>
+        </div>
+
+        <!-- 画布视图 -->
+        <div id="canvasView" class="workspace-container">
+            <div class="components-panel">
+                <div class="panel-header">组件面板</div>
+                <div class="panel-body">
+                    <div class="comp-group">
+                        <div class="comp-group-title"><i class="fa-solid fa-database"></i> 步骤1 - 数据采集</div>
+                        <div class="comp-item" draggable="true" ondragstart="dragStartOp(event,'op1-1')">
+                            <div class="comp-icon" style="background:var(--color-step1);"><i class="fa-solid fa-table"></i></div>
+                            <span class="comp-text">数据采集(DB)</span>
+                        </div>
+                        <div class="comp-item" draggable="true" ondragstart="dragStartOp(event,'op1-2')">
+                            <div class="comp-icon" style="background:var(--color-step1);"><i class="fa-solid fa-file-pdf"></i></div>
+                            <span class="comp-text">数据采集(PDF)</span>
+                        </div>
+                        <div class="comp-item" draggable="true" ondragstart="dragStartOp(event,'op1-3')">
+                            <div class="comp-icon" style="background:var(--color-step1);"><i class="fa-solid fa-code"></i></div>
+                            <span class="comp-text">数据采集(脚本)</span>
+                        </div>
+                    </div>
+                    <div class="comp-group">
+                        <div class="comp-group-title"><i class="fa-solid fa-cube"></i> 步骤2 - 实体提取</div>
+                        <div class="comp-item" draggable="true" ondragstart="dragStartOp(event,'op2-1')">
+                            <div class="comp-icon" style="background:var(--color-step2);"><i class="fa-solid fa-brain"></i></div>
+                            <span class="comp-text">实体提取+映射</span>
+                        </div>
+                    </div>
+                    <div class="comp-group">
+                        <div class="comp-group-title"><i class="fa-solid fa-link"></i> 步骤3 - 关联构建</div>
+                        <div class="comp-item" draggable="true" ondragstart="dragStartOp(event,'op3-1')">
+                            <div class="comp-icon" style="background:var(--color-step3);"><i class="fa-solid fa-link"></i></div>
+                            <span class="comp-text">关联构建</span>
+                        </div>
+                    </div>
+                    <div class="comp-group">
+                        <div class="comp-group-title"><i class="fa-solid fa-server"></i> 步骤4 - 知识融合</div>
+                        <div class="comp-item" draggable="true" ondragstart="dragStartOp(event,'op4-1')">
+                            <div class="comp-icon" style="background:var(--color-step4);"><i class="fa-solid fa-database"></i></div>
+                            <span class="comp-text">知识融合入库</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="canvas-area" id="canvasArea" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <svg id="svg-layer">
+                    <path id="temp-line" class="temp-line" d=""></path>
+                </svg>
+                <div id="edges-container"></div>
+                <div id="nodes-container"></div>
+            </div>
+            <div class="config-drawer" id="configDrawer">
+                <div class="drawer-header">
+                    <span>节点配置</span>
+                    <i class="fa-solid fa-xmark close-drawer" onclick="closeDrawer()"></i>
+                </div>
+                <div class="drawer-body">
+                    <div class="form-group">
+                        <label style="font-size:12px;color:var(--text-secondary);">节点名称</label>
+                        <input type="text" class="form-input" id="configNodeName">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size:12px;color:var(--text-secondary);">描述</label>
+                        <input type="text" class="form-input" id="configNodeDesc">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 模态框: 脚本编辑 -->
+    <div class="modal-overlay" id="scriptModal">
+        <div class="modal" style="width:500px;">
+            <h3><i class="fa-solid fa-code"></i> 自定义脚本</h3>
+            <textarea class="sql-editor-box" id="scriptEditor" placeholder="-- 在此编写数据预处理脚本..."></textarea>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('scriptModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveScript()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: SQL预览 -->
+    <div class="modal-overlay" id="sqlModal">
+        <div class="modal">
+            <h3><i class="fa-solid fa-database"></i> SQL预览</h3>
+            <p style="margin-bottom:10px;font-size:13px;">表: <span id="sqlTableName" style="color:var(--primary-color);font-weight:600;"></span></p>
+            <textarea class="sql-editor-box" id="fakeSqlInput" readonly></textarea>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('sqlModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 字段详情 -->
+    <div class="modal-overlay" id="fieldModal">
+        <div class="modal">
+            <h3><i class="fa-solid fa-table"></i> 字段详情</h3>
+            <p style="margin-bottom:10px;font-size:13px;">表: <span id="fieldTableName" style="color:var(--primary-color);font-weight:600;"></span></p>
+            <div style="margin-bottom:10px;font-size:12px;color:var(--text-secondary);">共 6 个字段</div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('fieldModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 重新识别确认 -->
+    <div class="modal-overlay" id="reextractConfirmModal">
+        <div class="modal">
+            <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning-color);"></i> 确认重新识别</h3>
+            <p style="margin:14px 0;color:var(--text-regular);">重新识别将覆盖当前已提取的实体数据，是否继续？</p>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('reextractConfirmModal')">取消</button>
+                <button class="btn btn-warning" onclick="startReextract()">确认重新识别</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框: 进度条 -->
+    <div class="modal-overlay" id="reextractProgressModal">
+        <div class="modal" style="width:420px;">
+            <h3><i class="fa-solid fa-circle-notch fa-spin" style="color:var(--processing-color);"></i> 正在识别...</h3>
+            <div style="margin:20px 0;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                    <span id="progressLabel" style="font-size:14px;font-weight:500;">初始化...</span>
+                    <span id="progressPct" style="font-size:14px;color:var(--primary-color);">0%</span>
+                </div>
+                <div style="height:8px;background:#F2F3F5;border-radius:4px;overflow:hidden;">
+                    <div id="progressBarFill" style="height:100%;background:var(--processing-color);width:0%;transition:width 0.3s;"></div>
+                </div>
+                <div id="progressStage" style="margin-top:10px;font-size:12px;color:var(--text-secondary);"></div>
+            </div>
+            <div class="modal-footer" id="btnProgressClose" style="display:none;">
+                <button class="btn btn-primary" onclick="dismissProgressModal()">完成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI识别遮罩 -->
+    <div class="modal-overlay" id="recognitionOverlay" style="background:rgba(255,255,255,0.9);">
+        <div style="text-align:center;">
+            <i class="fa-solid fa-wand-magic-sparkles" style="font-size:48px;color:var(--primary-color);margin-bottom:16px;"></i>
+            <h3 style="margin-bottom:8px;">AI 正在识别本体结构</h3>
+            <p style="color:var(--text-secondary);">正在分析数据表语义...</p>
+        </div>
+    </div>
+
+    <!-- 映射识别遮罩 -->
+    <div class="modal-overlay" id="mappingRecognizingOverlay" style="background:rgba(255,255,255,0.9);display:none;">
+        <div style="text-align:center;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size:48px;color:var(--color-step2);margin-bottom:16px;"></i>
+            <h3 style="margin-bottom:8px;">正在生成字段映射</h3>
+            <p style="color:var(--text-secondary);">AI 正在推断字段与实体的关联...</p>
+        </div>
+    </div>
+
+    <!-- 模态框: 调整所属域 -->
+    <div class="modal-overlay" id="moveDomainModal">
+        <div class="modal" style="width:400px;">
+            <h3><i class="fa-solid fa-arrow-right-arrow-left"></i> 调整所属域</h3>
+            <p style="margin-bottom:10px;font-size:13px;">实体: <span id="movingEntityName" style="color:var(--primary-color);font-weight:600;"></span></p>
+            <p style="margin-bottom:10px;font-size:12px;color:var(--text-secondary);">当前域: <span id="movingEntityCurrentDomain"></span></p>
+            <div style="margin:14px 0;">
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">选择目标域:</div>
+                <div id="domainOptionList"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('moveDomainModal')">取消</button>
+                <button class="btn btn-primary" onclick="confirmMoveDomain()">确认移动</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- IDE弹窗 -->
+    <div class="modal-overlay" id="ideModal">
+        <div class="modal ide-modal">
+            <div class="ide-titlebar">
+                <div class="ide-titlebar-left">
+                    <i class="fa-brands fa-python" style="font-size:16px;"></i>
+                    <span>Python Script - data_processor.py</span>
+                </div>
+                <i class="fa-solid fa-xmark ide-close" onclick="closeModal('ideModal')"></i>
+            </div>
+            <div class="ide-body">
+                <div class="ide-sidebar">
+                    <div class="ide-sidebar-header">
+                        <span>数据源</span>
+                        <div class="ide-sidebar-actions">
+                            <button class="ide-sidebar-btn" onclick="toggleDsForm()"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="ide-ds-form" id="dsForm">
+                        <input type="text" class="ide-input" placeholder="连接字符串">
+                        <select class="ide-select">
+                            <option>MySQL</option>
+                            <option>PostgreSQL</option>
+                        </select>
+                        <button class="ide-btn ide-btn-submit" style="width:100%;">连接</button>
+                    </div>
+                    <div class="ide-tree">
+                        <div class="ide-tree-ds">
+                            <div class="ide-tree-ds-header">
+                                <i class="fa-solid fa-database ide-tree-ds-icon"></i>
+                                <span>MySQL 生产库</span>
+                            </div>
+                            <div class="ide-tree-table"><i class="fa-solid fa-table ide-tree-table-icon"></i>user_info</div>
+                            <div class="ide-tree-table"><i class="fa-solid fa-table ide-tree-table-icon"></i>user_profile</div>
+                            <div class="ide-tree-table"><i class="fa-solid fa-table ide-tree-table-icon"></i>order_info</div>
+                        </div>
+                        <div class="ide-tree-ds">
+                            <div class="ide-tree-ds-header">
+                                <i class="fa-solid fa-database ide-tree-ds-icon"></i>
+                                <span>PostgreSQL DW</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ide-editor-area">
+                    <div class="ide-tabs">
+                        <div class="ide-tab active"><i class="fa-brands fa-python"></i> data_processor.py</div>
+                        <div class="ide-tab"><i class="fa-solid fa-plus"></i></div>
+                    </div>
+                    <div class="ide-code-area">
+                        <textarea class="ide-code-editor" id="ideCodeEditor"># 数据预处理脚本
+import pandas as pd
+
+def process_data(df):
+    # 数据清洗
+    df = df.dropna()
+    df = df.drop_duplicates()
+
+    # 字段映射
+    df.rename(columns={
+        'user_id': 'userId',
+        'user_name': 'userName',
+        'create_time': 'createTime'
+    }, inplace=True)
+
+    return df
+</textarea>
+                    </div>
+                    <div class="ide-statusbar">
+                        <span>Python 3.9</span>
+                        <span>UTF-8</span>
+                        <span>Ln 1, Col 1</span>
+                    </div>
+                </div>
+            </div>
+            <div class="ide-footer">
+                <div class="ide-footer-left">
+                    <i class="fa-solid fa-circle" style="color:var(--success-color);font-size:10px;"></i>
+                    <span>已连接</span>
+                </div>
+                <div class="ide-footer-right">
+                    <button class="ide-btn ide-btn-run"><i class="fa-solid fa-play"></i> 运行</button>
+                    <button class="ide-btn ide-btn-cancel" onclick="closeModal('ideModal')">取消</button>
+                    <button class="ide-btn ide-btn-submit"><i class="fa-solid fa-check"></i> 提交</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

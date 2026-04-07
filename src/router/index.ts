@@ -16,6 +16,11 @@ const routes: RouteRecordRaw[] = [
     path: '/task/:id',
     name: 'TaskEdit',
     component: () => import('@/views/TaskView.vue')
+  },
+  {
+    path: '/factory',
+    name: 'Factory',
+    component: () => import('@/views/FactoryView.vue')
   }
 ]
 
